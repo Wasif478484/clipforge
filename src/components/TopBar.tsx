@@ -59,6 +59,16 @@ export default function TopBar({
 
       <div className="spacer" />
 
+      <a
+        className="btn ghost small download-link"
+        href="https://github.com/Wasif478484/clipforge/releases/latest"
+        target="_blank"
+        rel="noreferrer"
+        title="Download ClipForge for Windows, macOS and Linux"
+      >
+        <DownloadIcon size={15} />
+        Download
+      </a>
       <button className="btn" onClick={onExport} disabled={!canExport || exporting}>
         {!exporting && <DownloadIcon size={16} strokeWidth={2.4} />}
         {exporting ? `Exporting… ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export .webm'}
