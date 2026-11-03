@@ -57,6 +57,25 @@
     },
     "portable": {
       "artifactName": "ClipForge-${version}-Portable-x64.${ext}"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg", "arch": ["universal"] },
+        { "target": "zip", "arch": ["universal"] }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.video"
+    },
+    "dmg": {
+      "artifactName": "ClipForge-${version}-macOS-universal.${ext}"
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] }
+      ],
+      "icon": "build/icon.png",
+      "category": "AudioVideo",
+      "artifactName": "ClipForge-${version}-Linux-x64.${ext}"
     }
   },
   "dependencies": {

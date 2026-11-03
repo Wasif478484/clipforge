@@ -1,7 +1,12 @@
 # ClipForge
 
-A free, open-source video editor for the browser. Timeline editing, text overlays,
-and one-click export — all media stays on your device, nothing is uploaded.
+[![License: MIT](https://img.shields.io/badge/License-MIT-35e0c0.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/Wasif478484/clipforge)](https://github.com/Wasif478484/clipforge/releases/latest)
+[![Build](https://github.com/Wasif478484/clipforge/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/Wasif478484/clipforge/releases)
+
+A free, open-source video editor for the browser **and the desktop**. Timeline
+editing, text overlays, and one-click export — all media stays on your device,
+nothing is uploaded.
 
 **Not affiliated with CapCut or ByteDance.** ClipForge is an independent project
 built from public web standards (Canvas, WebCodecs-era APIs, MediaRecorder) as an
@@ -23,16 +28,20 @@ React 19 · TypeScript · Vite · Canvas 2D · Web Audio API · MediaRecorder
 
 No server, no upload, no account. Static hosting is enough (Vercel, Netlify, GitHub Pages).
 
-## Download (Windows)
+## Download
 
-ClipForge is a real desktop app, not just a website — grab the installer from
+ClipForge ships as a real desktop app, not just a website — grab installers from
 [GitHub Releases](https://github.com/Wasif478484/clipforge/releases/latest):
 
-- **ClipForge-x.y.z-Setup-x64.exe** — guided installer (Start Menu + desktop shortcut)
-- **ClipForge-x.y.z-Portable-x64.exe** — no install, just run
+- **Windows (x64)** — `ClipForge-<v>-Setup-x64.exe` (guided installer) or `ClipForge-<v>-Portable-x64.exe`
+- **macOS (universal)** — `ClipForge-<v>-macOS-universal.dmg`
+- **Linux (x64)** — `ClipForge-<v>-Linux-x64.AppImage`
 
-The Windows binaries are currently **unsigned**, so SmartScreen may warn on
-first launch — choose *More info → Run anyway*. Signed builds are on the roadmap.
+Binaries are **not yet code-signed**, so expect SmartScreen / Gatekeeper
+warnings on first launch (see the release notes) — signed builds are roadmap.
+
+Windows and macOS code signing is not configured; macOS/Linux binaries are
+built by CI on every tagged release.
 
 ### Build the desktop app yourself
 
@@ -41,9 +50,9 @@ npm install
 npm run desktop:build   # vite build + electron-builder → release/
 ```
 
-Outputs a per-user NSIS installer and a portable exe under `release/`.
-Electron (WebView-backed Chromium) wraps the exact same web build — same UI,
-same local-only processing, no telemetry.
+Outputs platform installers under `release/`.
+Electron (Chromium) wraps the exact same web build — same UI, same local-only
+processing, no telemetry.
 
 ## Develop
 
