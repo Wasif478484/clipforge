@@ -43,7 +43,10 @@ export default function App() {
     () => Math.max(0, ...clips.map((c) => c.start + c.duration), ...texts.map((t) => t.start + t.duration)),
     [clips, texts],
   );
-  stateRef.current = { assets, clips, texts, duration };
+  // Keep the shared snapshot outside render — callbacks read it via ref.
+  useEffect(() => {
+    stateRef.current = { assets, clips, texts, duration };
+  });
 
   const assetKindById = useMemo(() => {
     const map: Record<string, MediaKind | undefined> = {};
@@ -223,22 +226,16 @@ export default function App() {
     applyGains(t);
   }, [drawFrame, syncPlayback, applyGains]);
 
-  const seek = useCallback((t: number) => {
-    const clamped = clamp(t, 0, stateRef.current.duration);
-    currentTimeRef.current = clamped;
-    setCurrentTime(clamped);
-    if (playingRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      startOffsetRef.current = clamped;
-      startStampRef.current = performance.now();
-      rafRef.current = requestAnimationFrame(tickRef.current);
-    } else {
-      drawAndSync(clamped, false);
-    }
+  const finishPlayback = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    playingRef.current = false;
+    setPlaying(false);
+    drawAndSync(stateRef.current.duration, false);
+    const recorder = exportRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
   }, [drawAndSync]);
 
-  const tickRef = useRef<() => void>(() => undefined);
-  tickRef.current = () => {
+  const tick = useCallback(function tick() {
     const dur = stateRef.current.duration;
     const elapsed = (performance.now() - startStampRef.current) / 1000;
     const t = Math.min(startOffsetRef.current + elapsed, dur);
@@ -252,21 +249,25 @@ export default function App() {
       });
     }
     if (t >= dur) {
-      finishPlaybackRef.current();
+      finishPlayback();
       return;
     }
-    rafRef.current = requestAnimationFrame(tickRef.current);
-  };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [drawAndSync, finishPlayback]);
 
-  const finishPlaybackRef = useRef<() => void>(() => undefined);
-  finishPlaybackRef.current = () => {
-    cancelAnimationFrame(rafRef.current);
-    playingRef.current = false;
-    setPlaying(false);
-    drawAndSync(stateRef.current.duration, false);
-    const recorder = exportRecorderRef.current;
-    if (recorder && recorder.state !== 'inactive') recorder.stop();
-  };
+  const seek = useCallback((t: number) => {
+    const clamped = clamp(t, 0, stateRef.current.duration);
+    currentTimeRef.current = clamped;
+    setCurrentTime(clamped);
+    if (playingRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      startOffsetRef.current = clamped;
+      startStampRef.current = performance.now();
+      rafRef.current = requestAnimationFrame(tick);
+    } else {
+      drawAndSync(clamped, false);
+    }
+  }, [drawAndSync, tick]);
 
   const play = useCallback(() => {
     if (stateRef.current.duration <= 0) {
@@ -281,8 +282,8 @@ export default function App() {
     playingRef.current = true;
     setPlaying(true);
     cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(tickRef.current);
-  }, [ensureAudioGraph, syncAudioGraph, showToast]);
+    rafRef.current = requestAnimationFrame(tick);
+  }, [ensureAudioGraph, syncAudioGraph, showToast, tick]);
 
   const pause = useCallback(() => {
     cancelAnimationFrame(rafRef.current);

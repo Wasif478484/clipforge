@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import type { Aspect } from '../types';
 import { CANVAS_SIZE } from '../types';
 import { formatTime } from '../util';
+import { FilmIcon, PauseIcon, PlayIcon, SkipBackIcon } from '../icons';
 
 interface Props {
   aspect: Aspect;
@@ -36,10 +37,10 @@ const Stage = forwardRef<HTMLCanvasElement, Props>(function Stage(
           <canvas ref={canvasRef} width={size.w} height={size.h} aria-label="Video preview" />
           {!hasContent && (
             <div className="stage-hint">
-              <div style={{ fontSize: 40, opacity: 0.5 }}>🎬</div>
-              <div>
-                Your timeline is empty.<br />
-                Import media on the left, then press <b>+</b> to add it.
+              <div className="empty-tile large"><FilmIcon size={34} strokeWidth={1.5} /></div>
+              <div className="stage-hint-copy">
+                <b>Your timeline is empty</b>
+                <span>Import media on the left, then press <b>+</b> to add it — or generate a sample.</span>
               </div>
             </div>
           )}
@@ -47,14 +48,10 @@ const Stage = forwardRef<HTMLCanvasElement, Props>(function Stage(
       </div>
       <div className="transport">
         <button className="icon-btn" onClick={onSeekStart} title="Back to start" aria-label="Back to start">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2h2v12H3zM13 2v12L6 8z"/></svg>
+          <SkipBackIcon size={17} />
         </button>
         <button className="icon-btn primary" onClick={onTogglePlay} title={playing ? 'Pause (Space)' : 'Play (Space)'} aria-label={playing ? 'Pause' : 'Play'}>
-          {playing ? (
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2h3v12H4zM9 2h3v12H9z"/></svg>
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2l10 6-10 6z"/></svg>
-          )}
+          {playing ? <PauseIcon size={20} /> : <PlayIcon size={20} style={{ marginLeft: 2 }} />}
         </button>
         <div className="timecode" aria-live="off">
           <b>{formatTime(currentTime)}</b> / {formatTime(duration)}

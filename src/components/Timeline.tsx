@@ -1,6 +1,7 @@
 import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay } from '../types';
 import { clamp } from '../util';
+import { FilmIcon, MusicIcon, TypeIcon } from '../icons';
 
 interface Props {
   clips: Clip[];
@@ -25,6 +26,12 @@ type DragState =
 
 const formatTick = (s: number): string =>
   `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+
+const TRACK_ICONS = { video: FilmIcon, audio: MusicIcon, text: TypeIcon } as const;
+const TrackIcon = ({ kind }: { kind: 'video' | 'audio' | 'text' }) => {
+  const Icon = TRACK_ICONS[kind];
+  return <Icon size={13} strokeWidth={2.2} aria-hidden="true" />;
+};
 
 export default function Timeline({
   clips,
@@ -217,7 +224,10 @@ export default function Timeline({
 
           {TRACKS.map((track) => (
             <div className="track-row" key={track.id}>
-              <div className="track-label">{track.name}</div>
+              <div className="track-label" title={track.name}>
+                <TrackIcon kind={track.kind} />
+                <span>{track.name}</span>
+              </div>
               <div className="track-lane">
                 {track.kind === 'text'
                   ? texts.map(renderText)

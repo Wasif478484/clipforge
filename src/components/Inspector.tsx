@@ -1,4 +1,5 @@
 import type { Clip, Selection, TextOverlay } from '../types';
+import { InfoIcon, ScissorsIcon, TrashIcon } from '../icons';
 
 interface Props {
   selection: Selection;
@@ -32,15 +33,17 @@ export default function Inspector({
         <h2 className="panel-title">Inspector</h2>
 
         {!selection && (
-          <div className="empty-note">
-            <p><b>Nothing selected.</b></p>
-            <p>Click a clip on the timeline to edit its trim, volume and fit — or use the shortcuts below:</p>
-            <p>
-              <span className="kbd">Space</span> play / pause<br />
-              <span className="kbd">Delete</span> remove selected<br />
-              <span className="kbd">Ctrl</span> + <span className="kbd">B</span> split clip at playhead
+          <div className="empty-state">
+            <div className="empty-tile"><InfoIcon size={24} strokeWidth={1.6} /></div>
+            <p><b>Nothing selected</b></p>
+            <p>Click a clip on the timeline to edit its trim, volume and fit — or use the shortcuts below.</p>
+            <p className="shortcut-list">
+              <span><span className="kbd">Space</span> play / pause</span>
+              <span><span className="kbd">Delete</span> remove selected</span>
+              <span><span className="kbd">Ctrl</span>+<span className="kbd">B</span> split clip at playhead</span>
+              <span><span className="kbd">←</span><span className="kbd">→</span> nudge playhead (ruler focused)</span>
             </p>
-            <p>Drag clip bodies to move them, drag the edge handles to trim. The red line is the playhead — click the ruler to scrub.</p>
+            <p className="muted-note">Drag clip bodies to move them, drag the edge handles to trim. The red line is the playhead — click the ruler to scrub.</p>
           </div>
         )}
 
@@ -82,9 +85,13 @@ export default function Inspector({
             </div>
             <div className="field-row">
               <button className="btn ghost small" onClick={onSplit} disabled={!canSplit} title="Split at playhead (Ctrl+B)">
+                <ScissorsIcon size={15} />
                 Split
               </button>
-              <button className="btn danger small" onClick={onDeleteSelection}>Delete</button>
+              <button className="btn danger small" onClick={onDeleteSelection}>
+                <TrashIcon size={15} />
+                Delete
+              </button>
             </div>
           </>
         )}
@@ -129,7 +136,10 @@ export default function Inspector({
                   onChange={(e) => onChangeText(text.id, { duration: Math.max(0.1, num(e.target.value, text.duration)) })} />
               </div>
             </div>
-            <button className="btn danger small" onClick={onDeleteSelection}>Delete</button>
+            <button className="btn danger small" onClick={onDeleteSelection}>
+              <TrashIcon size={15} />
+              Delete
+            </button>
           </>
         )}
       </div>

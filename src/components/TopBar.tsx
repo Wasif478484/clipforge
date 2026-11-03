@@ -1,4 +1,5 @@
 import type { Aspect } from '../types';
+import { DownloadIcon, TypeIcon } from '../icons';
 
 interface Props {
   projectName: string;
@@ -52,12 +53,14 @@ export default function TopBar({
       </div>
 
       <button className="btn ghost small" onClick={onAddText} title="Add a text overlay at the playhead">
-        + Text
+        <TypeIcon size={15} />
+        Text
       </button>
 
       <div className="spacer" />
 
       <button className="btn" onClick={onExport} disabled={!canExport || exporting}>
+        {!exporting && <DownloadIcon size={16} strokeWidth={2.4} />}
         {exporting ? `Exporting… ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export .webm'}
       </button>
     </header>
