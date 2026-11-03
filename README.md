@@ -23,6 +23,28 @@ React 19 · TypeScript · Vite · Canvas 2D · Web Audio API · MediaRecorder
 
 No server, no upload, no account. Static hosting is enough (Vercel, Netlify, GitHub Pages).
 
+## Download (Windows)
+
+ClipForge is a real desktop app, not just a website — grab the installer from
+[GitHub Releases](https://github.com/Wasif478484/clipforge/releases/latest):
+
+- **ClipForge-x.y.z-Setup-x64.exe** — guided installer (Start Menu + desktop shortcut)
+- **ClipForge-x.y.z-Portable-x64.exe** — no install, just run
+
+The Windows binaries are currently **unsigned**, so SmartScreen may warn on
+first launch — choose *More info → Run anyway*. Signed builds are on the roadmap.
+
+### Build the desktop app yourself
+
+```bash
+npm install
+npm run desktop:build   # vite build + electron-builder → release/
+```
+
+Outputs a per-user NSIS installer and a portable exe under `release/`.
+Electron (WebView-backed Chromium) wraps the exact same web build — same UI,
+same local-only processing, no telemetry.
+
 ## Develop
 
 ```bash
