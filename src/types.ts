@@ -18,6 +18,20 @@ export interface MediaAsset {
   height?: number;
 }
 
+export interface ClipFilter {
+  brightness: number; // 1.0 = normal
+  contrast: number;
+  saturation: number;
+  hue: number; // degrees 0..360
+  blur: number; // px
+  sepia: number; // 0..1
+  grayscale: number; // 0..1
+}
+
+export const DEFAULT_FILTER: ClipFilter = {
+  brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0, grayscale: 0,
+};
+
 export interface Clip {
   id: string;
   assetId: string;
@@ -34,6 +48,10 @@ export interface Clip {
   volume: number;
   muted: boolean;
   fit: 'cover' | 'contain';
+  filter: ClipFilter;
+  speed: number; // 1.0 = normal
+  transitionIn: 'none' | 'fade' | 'crossfade' | 'slide';
+  transitionOut: 'none' | 'fade';
 }
 
 export interface TextOverlay {

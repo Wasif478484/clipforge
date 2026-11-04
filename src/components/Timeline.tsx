@@ -94,7 +94,14 @@ export default function Timeline({
     if (drag.kind === 'clip') {
       const o = drag.orig;
       if (drag.mode === 'move') {
-        onPatchClip(drag.id, { start: clamp(o.start + dx, 0, totalSeconds) });
+        let newStart = clamp(o.start + dx, 0, totalSeconds);
+        // snap to other clips' edges on the same track
+        const others = clips.filter((c) => c.id !== drag.id && c.trackId === (clips.find((x) => x.id === drag.id)?.trackId));
+        for (const o2 of others) {
+          if (Math.abs(newStart - o2.start) < 0.15) newStart = o2.start;
+          if (Math.abs(newStart - (o2.start + o2.duration)) < 0.15) newStart = o2.start + o2.duration;
+        }
+        onPatchClip(drag.id, { start: newStart });
       } else if (drag.mode === 'left') {
         const newStart = clamp(o.start + dx, 0, o.start + o.duration - 0.1);
         const d = newStart - o.start;

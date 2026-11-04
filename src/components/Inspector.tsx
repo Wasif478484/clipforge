@@ -1,5 +1,6 @@
 import type { Clip, Selection, TextOverlay } from '../types';
 import { InfoIcon, ScissorsIcon, TrashIcon } from '../icons';
+import { DEFAULT_FILTER } from '../types';
 
 interface Props {
   selection: Selection;
@@ -83,6 +84,88 @@ export default function Inspector({
                 <option value="contain">Fit inside (letterbox)</option>
               </select>
             </div>
+            <div className="field">
+              <label>Speed — {clip.speed.toFixed(2)}×</label>
+              <input type="range" min={0.25} max={2} step={0.25} value={clip.speed}
+                onChange={(e) => onChangeClip(clip.id, { speed: Number(e.target.value) })} />
+            </div>
+
+            <div className="field-group-title">Color correction</div>
+            {[
+              ['brightness', 'Brightness', 0, 2, 0.01],
+              ['contrast', 'Contrast', 0, 2, 0.01],
+              ['saturation', 'Saturation', 0, 2, 0.01],
+              ['hue', 'Hue', 0, 360, 1],
+              ['blur', 'Blur', 0, 20, 0.5],
+              ['sepia', 'Sepia', 0, 1, 0.01],
+              ['grayscale', 'Grayscale', 0, 1, 0.01],
+            ].map(([key, label, min, max, step]) => (
+              <div className="field" key={key as string}>
+                <label>{label as string} — {(clip.filter[key as keyof Clip['filter']] as number).toFixed(key === 'hue' || key === 'blur' ? 0 : 2)}</label>
+                <input
+                  type="range"
+                  min={min as number}
+                  max={max as number}
+                  step={step as number}
+                  value={clip.filter[key as keyof Clip['filter']] as number}
+                  onChange={(e) => onChangeClip(clip.id, { filter: { ...clip.filter, [key as string]: Number(e.target.value) } })}
+                />
+              </div>
+            ))}
+            <div className="field">
+              <label>Colour grade</label>
+              <select
+                defaultValue="custom"
+                onChange={(e) => {
+                  const value = e.currentTarget.value;
+                  if (value === 'none') onChangeClip(clip.id, { filter: { ...DEFAULT_FILTER } });
+                  else if (value === 'cinematic') onChangeClip(clip.id, { filter: { brightness: 0.98, contrast: 1.22, saturation: 0.92, hue: 0, blur: 0, sepia: 0.05, grayscale: 0 } });
+                  else if (value === 'noir') onChangeClip(clip.id, { filter: { brightness: 0.95, contrast: 1.25, saturation: 0, hue: 0, blur: 0, sepia: 0, grayscale: 1 } });
+                  else if (value === 'warm') onChangeClip(clip.id, { filter: { brightness: 1.06, contrast: 1.06, saturation: 1.08, hue: 20, blur: 0, sepia: 0.12, grayscale: 0 } });
+                  else if (value === 'cool') onChangeClip(clip.id, { filter: { brightness: 0.98, contrast: 1.15, saturation: 1.02, hue: -18, blur: 0, sepia: 0, grayscale: 0 } });
+                  else if (value === 'neon') onChangeClip(clip.id, { filter: { brightness: 1.01, contrast: 1.28, saturation: 1.45, hue: 0, blur: 0, sepia: 0, grayscale: 0 } });
+                  else if (value === 'portrait') onChangeClip(clip.id, { filter: { brightness: 1.03, contrast: 0.98, saturation: 0.92, hue: 0, blur: 0.2, sepia: 0.02, grayscale: 0 } });
+                  else if (value === 'fade') onChangeClip(clip.id, { filter: { brightness: 1.06, contrast: 0.88, saturation: 0.75, hue: 0, blur: 0, sepia: 0.15, grayscale: 0 } });
+                }}
+              >
+                <option value="custom">Custom</option>
+                <option value="none">None (reset)</option>
+                <option value="cinematic">Cinematic</option>
+                <option value="noir">Noir</option>
+                <option value="warm">Warm film</option>
+                <option value="cool">Cool tone</option>
+                <option value="neon">Neon</option>
+                <option value="portrait">Portrait</option>
+                <option value="fade">Faded</option>
+              </select>
+            </div>
+            <button
+              className="btn ghost small"
+              onClick={() => onChangeClip(clip.id, { filter: { brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0, grayscale: 0 } })}
+            >
+              Reset filters
+            </button>
+
+            <div className="field-group-title">Transitions</div>
+            <div className="field-row">
+              <div className="field">
+                <label>Fade in</label>
+                <select value={clip.transitionIn} onChange={(e) => onChangeClip(clip.id, { transitionIn: e.target.value as Clip['transitionIn'] })}>
+                  <option value="none">None</option>
+                  <option value="fade">Fade</option>
+                  <option value="crossfade">Crossfade</option>
+                  <option value="slide">Slide</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Fade out</label>
+                <select value={clip.transitionOut} onChange={(e) => onChangeClip(clip.id, { transitionOut: e.target.value as Clip['transitionOut'] })}>
+                  <option value="none">None</option>
+                  <option value="fade">Fade</option>
+                </select>
+              </div>
+            </div>
+
             <div className="field-row">
               <button className="btn ghost small" onClick={onSplit} disabled={!canSplit} title="Split at playhead (Ctrl+B)">
                 <ScissorsIcon size={15} />

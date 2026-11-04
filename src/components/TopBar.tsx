@@ -7,8 +7,16 @@ interface Props {
   aspect: Aspect;
   onAspectChange: (aspect: Aspect) => void;
   onExport: () => void;
+  onExportMp4: () => void;
   onAddText: () => void;
+  onHome?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  onSaveProject?: () => void;
+  onSaveToRecent?: () => void;
+  onLoadProject?: (file: File) => void;
   exportProgress: number | null; // null when idle
+  mp4Busy: boolean;
   canExport: boolean;
 }
 
@@ -18,11 +26,19 @@ export default function TopBar({
   aspect,
   onAspectChange,
   onExport,
+  onExportMp4,
   onAddText,
+  onHome,
+  onUndo,
+  onRedo,
+  onSaveProject,
+  onSaveToRecent,
+  onLoadProject,
   exportProgress,
+  mp4Busy,
   canExport,
 }: Props) {
-  const exporting = exportProgress !== null;
+  // (exporting derived inline where needed)
   return (
     <header className="topbar">
       <div className="brand" title="ClipForge — open-source video editor">
@@ -35,6 +51,36 @@ export default function TopBar({
         </svg>
         Clip<span className="dot">Forge</span>
       </div>
+
+      {onHome && (
+        <button className="btn ghost small" onClick={onHome} title="Back to home">
+          Home
+        </button>
+      )}
+
+      <div className="toolbar-group">
+        {onUndo && <button className="btn ghost small" onClick={onUndo} title="Undo (Ctrl+Z)">Undo</button>}
+        {onRedo && <button className="btn ghost small" onClick={onRedo} title="Redo (Ctrl+Shift+Z)">Redo</button>}
+      </div>
+
+      {onSaveToRecent && (
+        <button className="btn ghost small" onClick={onSaveToRecent} title="Save to dashboard (local recent list)">
+          Save to dashboard
+        </button>
+      )}
+
+      {onSaveProject && (
+        <button className="btn ghost small" onClick={onSaveProject} title="Save project (.clipforge.json)">
+          Save
+        </button>
+      )}
+      {onLoadProject && (
+        <label className="btn ghost small" title="Load project (.clipforge.json)" style={{ cursor: 'pointer' }}>
+          Load
+          <input type="file" accept=".clipforge.json,application/json" hidden
+            onChange={(e) => { if (e.target.files?.[0]) onLoadProject(e.target.files[0]); e.target.value = ''; }} />
+        </label>
+      )}
 
       <input
         className="project-name"
@@ -69,9 +115,11 @@ export default function TopBar({
         <DownloadIcon size={15} />
         Download
       </a>
-      <button className="btn" onClick={onExport} disabled={!canExport || exporting}>
-        {!exporting && <DownloadIcon size={16} strokeWidth={2.4} />}
-        {exporting ? `Exporting… ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export .webm'}
+      <button className="btn" onClick={onExport} disabled={!canExport || exportProgress !== null}>
+        {exportProgress !== null ? `Exporting… ${Math.round(exportProgress * 100)}%` : 'Export WebM'}
+      </button>
+      <button className="btn ghost small" onClick={onExportMp4} disabled={!canExport || mp4Busy} title="Export as MP4 (H.264) via ffmpeg.wasm">
+        {mp4Busy ? 'MP4…' : 'Export MP4'}
       </button>
     </header>
   );

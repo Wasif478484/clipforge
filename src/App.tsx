@@ -4,9 +4,15 @@ import MediaPanel from './components/MediaPanel';
 import Stage from './components/Stage';
 import Inspector from './components/Inspector';
 import Timeline from './components/Timeline';
+import ImageEditor from './components/ImageEditor';
+import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
+import { putRecentProject, type RecentProject } from './lib/recent';
 import { createMediaElement, generateSampleImage, generateSampleVideo, probeAsset } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
+import { DEFAULT_FILTER } from './types';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 export default function App() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -21,6 +27,12 @@ export default function App() {
   const [toast, setToast] = useState<string | null>(null);
   const [generatingSample, setGeneratingSample] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
+  const [mp4Busy, setMp4Busy] = useState(false);
+
+  const [mode, setMode] = useState<'home' | 'video' | 'image'>('home');
+  const [imageSource, setImageSource] = useState<string | null>(null);
+  const [imageName, setImageName] = useState<string>('image');
+
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaEls = useRef(new Map<string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement>());
@@ -37,7 +49,11 @@ export default function App() {
   const currentTimeRef = useRef(0);
   const playingRef = useRef(false);
 
+  const historyRef = useRef<{ past: string[]; present: string; future: string[] }>({ past: [], present: '', future: [] });
+  const skipHistoryRef = useRef(false);
+  const ffmpegRef = useRef<FFmpeg | null>(null);
   const stateRef = useRef({ assets, clips, texts, duration: 0 });
+
 
   const duration = useMemo(
     () => Math.max(0, ...clips.map((c) => c.start + c.duration), ...texts.map((t) => t.start + t.duration)),
@@ -47,6 +63,38 @@ export default function App() {
   useEffect(() => {
     stateRef.current = { assets, clips, texts, duration };
   });
+
+  // Undo/redo history tracking.
+  const snapshot = useCallback(() => JSON.stringify({
+    projectName, aspect, clips, texts,
+  }), [projectName, aspect, clips, texts]);
+
+  useEffect(() => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    const h = historyRef.current;
+    const snap = snapshot();
+    if (h.present && h.present !== snap) {
+      h.past = [...h.past, h.present].slice(-60);
+      h.present = snap;
+      h.future = [];
+    } else if (!h.present) {
+      h.present = snap;
+    }
+  }, [clips, texts, projectName, aspect, snapshot]);
+
+  // Undo/redo history tracking.
+  useEffect(() => {
+    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
+    const h = historyRef.current;
+    const snap = snapshot();
+    if (h.present && h.present !== snap) {
+      h.past = [...h.past, h.present].slice(-60);
+      h.present = snap;
+      h.future = [];
+    } else if (!h.present) {
+      h.present = snap;
+    }
+  }, [clips, texts, projectName, aspect, snapshot]);
 
   const assetKindById = useMemo(() => {
     const map: Record<string, MediaKind | undefined> = {};
@@ -148,29 +196,49 @@ export default function App() {
     ctx.fillStyle = '#050506';
     ctx.fillRect(0, 0, W, H);
 
-    const drawFitted = (el: HTMLVideoElement | HTMLImageElement, fit: Clip['fit']) => {
+    const drawFitted = (el: HTMLVideoElement | HTMLImageElement, fit: Clip['fit'], filter: Clip['filter'], dx = 0) => {
       const iw = el instanceof HTMLImageElement ? el.naturalWidth : el.videoWidth;
       const ih = el instanceof HTMLImageElement ? el.naturalHeight : el.videoHeight;
       if (!iw || !ih) return;
       const scale = fit === 'cover' ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
       const dw = iw * scale;
       const dh = ih * scale;
-      ctx.drawImage(el, (W - dw) / 2, (H - dh) / 2, dw, dh);
+      ctx.filter = `brightness(${filter.brightness}) contrast(${filter.contrast}) saturate(${filter.saturation}) hue-rotate(${filter.hue}deg) blur(${filter.blur}px) sepia(${filter.sepia}) grayscale(${filter.grayscale})`;
+      ctx.drawImage(el, (W - dw) / 2 + dx, (H - dh) / 2, dw, dh);
+      ctx.filter = 'none';
     };
 
     for (const trackId of ['v1', 'v2']) {
-      for (const clip of clipList) {
-        if (clip.trackId !== trackId) continue;
-        if (t < clip.start || t >= clip.start + clip.duration) continue;
+      const active = clipList.filter((c) => c.trackId === trackId && t >= c.start && t < c.start + c.duration);
+      for (const clip of active) {
         const asset = assetList.find((a) => a.id === clip.assetId);
         if (!asset) continue;
         const el = mediaEls.current.get(clip.assetId);
         if (!el) continue;
-        if (el instanceof HTMLImageElement) {
-          if (el.complete && el.naturalWidth) drawFitted(el, clip.fit);
-        } else if (el instanceof HTMLVideoElement) {
-          if (el.readyState >= 2) drawFitted(el, clip.fit);
+
+        let alpha = 1;
+        const inDur = 0.35;
+        const outDur = 0.35;
+        if (clip.transitionIn === 'fade' || clip.transitionIn === 'crossfade' || clip.transitionIn === 'slide') {
+          if (t - clip.start < inDur) alpha *= Math.max(0, (t - clip.start) / inDur);
         }
+        if (clip.transitionOut === 'fade') {
+          if (clip.start + clip.duration - t < outDur) alpha *= Math.max(0, (clip.start + clip.duration - t) / outDur);
+        }
+        let dx = 0;
+        if (clip.transitionIn === 'slide' && t - clip.start < inDur) {
+          const p = Math.max(0, (t - clip.start) / inDur);
+          dx = (1 - p) * (W * 0.12);
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+        if (el instanceof HTMLImageElement) {
+          if (el.complete && el.naturalWidth) drawFitted(el, clip.fit, clip.filter, dx);
+        } else if (el instanceof HTMLVideoElement) {
+          if (el.readyState >= 2) drawFitted(el, clip.fit, clip.filter, dx);
+        }
+        ctx.restore();
       }
     }
 
@@ -190,7 +258,7 @@ export default function App() {
       ctx.lineWidth = Math.max(2, size * 0.16);
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.62)';
       ctx.fillStyle = overlay.color;
-      lines.forEach((line, i) => {
+      lines.forEach((line: string, i: number) => {
         const ly = y + (i - (lines.length - 1) / 2) * lineHeight;
         ctx.strokeText(line, x, ly);
         ctx.fillText(line, x, ly);
@@ -207,7 +275,7 @@ export default function App() {
       if (!el || el instanceof HTMLImageElement) continue;
 
       const active = t >= clip.start && t < clip.start + clip.duration;
-      const target = clip.trimStart + (t - clip.start);
+      const target = clip.trimStart + (t - clip.start) * clip.speed;
       if (active) {
         if (Math.abs(el.currentTime - target) > 0.35) el.currentTime = target;
         if (isPlaying) { if (el.paused) void el.play().catch(() => undefined); }
@@ -308,6 +376,30 @@ export default function App() {
     setAssets((prev) => [...prev, ...items]);
   }, []);
 
+  const handleOpenVideo = useCallback(() => setMode('video'), []);
+  const handleOpenImage = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      setImageSource(url);
+      setImageName(file.name);
+      setMode('image');
+    };
+    input.click();
+  }, []);
+  const handleImportImage = useCallback((files: FileList | File[]) => {
+    const file = Array.from(files)[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setImageSource(url);
+    setImageName(file.name);
+    setMode('image');
+  }, []);
+
   const handleImportFiles = useCallback((files: FileList | File[]) => {
     void (async () => {
       const probed: MediaAsset[] = [];
@@ -318,6 +410,7 @@ export default function App() {
       }
       if (probed.length) {
         addAssets(probed);
+        setMode('video');
         showToast(`Imported ${probed.length} file${probed.length === 1 ? '' : 's'}.`);
       } else {
         showToast('Could not read those files.');
@@ -363,6 +456,10 @@ export default function App() {
       volume: 1,
       muted: false,
       fit: 'cover',
+      filter: { ...DEFAULT_FILTER },
+      speed: 1,
+      transitionIn: 'none',
+      transitionOut: 'none',
     };
     setClips((prev) => [...prev, clip]);
     setSelection({ type: 'clip', id: clip.id });
@@ -400,9 +497,65 @@ export default function App() {
     setTexts((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   }, []);
 
+  const undo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.past.length === 0) return;
+    skipHistoryRef.current = true;
+    const prev = h.past[h.past.length - 1];
+    h.past = h.past.slice(0, -1);
+    h.future = [h.present, ...h.future];
+    h.present = prev;
+    const s = JSON.parse(prev) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+    setProjectName(s.projectName);
+    setAspect(s.aspect);
+    setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
+    setTexts(s.texts);
+    showToast('Undo');
+  }, [showToast]);
+
+  const redo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.future.length === 0) return;
+    skipHistoryRef.current = true;
+    const next = h.future[0];
+    h.future = h.future.slice(1);
+    h.past = [...h.past, h.present];
+    h.present = next;
+    const s = JSON.parse(next) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+    setProjectName(s.projectName);
+    setAspect(s.aspect);
+    setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
+    setTexts(s.texts);
+    showToast('Redo');
+  }, [showToast]);
+
+  const handleSaveProject = useCallback(() => {
+    const data = JSON.stringify({ version: 1, name: projectName, aspect, clips, texts,
+      assets: assets.map((a) => ({ id: a.id, name: a.name, kind: a.kind, duration: a.duration, width: a.width, height: a.height })) }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    downloadBlob(blob, `${projectName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'clipforge'}.clipforge.json`);
+    showToast('Project saved.');
+  }, [projectName, aspect, clips, texts, assets, showToast]);
+
+  const handleLoadProject = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(String(reader.result)) as { name?: string; aspect?: Aspect; clips?: Clip[]; texts?: TextOverlay[] };
+        if (data.name) setProjectName(data.name);
+        if (data.aspect) setAspect(data.aspect);
+        if (Array.isArray(data.clips)) setClips(data.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
+        if (Array.isArray(data.texts)) setTexts(data.texts);
+        showToast('Project loaded. Re-import media to restore clips.');
+      } catch {
+        showToast('Could not read project file.');
+      }
+    };
+    reader.readAsText(file);
+  }, [showToast]);
+
   const selectedClip = selection?.type === 'clip' ? clips.find((c) => c.id === selection.id) ?? null : null;
   const selectedText = selection?.type === 'text' ? texts.find((t) => t.id === selection.id) ?? null : null;
-
   const time = currentTime;
   const canSplit = Boolean(
     selectedClip && time > selectedClip.start + 0.01 && time < selectedClip.start + selectedClip.duration - 0.01,
@@ -421,7 +574,7 @@ export default function App() {
         name: `${clip.name} (2)`,
         start: t,
         duration: clip.duration - leftDuration,
-        trimStart: clip.trimStart + leftDuration,
+        trimStart: clip.trimStart + leftDuration * clip.speed,
       };
       const updated: Clip = { ...clip, duration: leftDuration };
       setSelection({ type: 'clip', id: rightClip.id });
@@ -429,7 +582,143 @@ export default function App() {
     });
   }, [selection?.id]);
 
-  /* ------------------------------------------------ export ------------------------------------------------ */
+  const saveToRecent = useCallback(async () => {
+    const { clips: clipList, texts: textList, assets } = stateRef.current;
+    const name = projectName;
+    const asp = aspect;
+    try {
+      // thumbnail from current canvas
+      let thumbnail: string | undefined;
+      try {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const thumb = document.createElement('canvas');
+          thumb.width = 320; thumb.height = Math.round((canvas.height / canvas.width) * 320);
+          const tctx = thumb.getContext('2d');
+          if (tctx) {
+            tctx.drawImage(canvas, 0, 0, thumb.width, thumb.height);
+            thumbnail = thumb.toDataURL('image/jpeg', 0.6);
+          }
+        }
+      } catch { /* no thumbnail */ }
+
+      // store media blobs so the project can be fully reopened later
+      const storedAssets = await Promise.all(assets.map(async (a) => {
+        try {
+          const res = await fetch(a.url);
+          const blob = await res.blob();
+          return { id: a.id, name: a.name, kind: a.kind, duration: a.duration, width: a.width, height: a.height, blob };
+        } catch {
+          return { id: a.id, name: a.name, kind: a.kind, duration: a.duration, width: a.width, height: a.height, blob: new Blob([], { type: 'application/octet-stream' }) };
+        }
+      }));
+
+      const entry: RecentProject = {
+        id: crypto.randomUUID(),
+        name,
+        kind: 'video',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        thumbnail,
+        videoJson: JSON.stringify({ version: 1, name, aspect: asp, clips: clipList, texts: textList }),
+        assets: storedAssets,
+      };
+      await putRecentProject(entry);
+      showToast('Saved to dashboard — reopen anytime.');
+    } catch (err) {
+      console.error(err);
+      showToast('Could not save to dashboard.');
+    }
+  }, [showToast, projectName, aspect]);
+
+  const openRecent = useCallback(async (entry: RecentProject) => {
+    if (entry.kind === 'video' && entry.videoJson) {
+      try {
+        const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+        setProjectName(parsed.name);
+        setAspect(parsed.aspect);
+        setSelection(null);
+        setCurrentTime(0);
+        const hydratedAssets: MediaAsset[] = [];
+        const newMediaEls: Array<[string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement]> = [];
+        for (const a of entry.assets ?? []) {
+          const url = URL.createObjectURL(a.blob);
+          const m: MediaAsset = { id: a.id, name: a.name, kind: a.kind, url, duration: a.duration, width: a.width, height: a.height };
+          hydratedAssets.push(m);
+          const el = a.kind === 'image' ? new Image() : document.createElement(a.kind);
+          el.src = url;
+          (el as HTMLVideoElement).preload = 'auto';
+          newMediaEls.push([a.id, el]);
+        }
+        mediaEls.current.clear();
+        newMediaEls.forEach(([id, el]) => mediaEls.current.set(id, el));
+        setAssets(hydratedAssets);
+        setClips(parsed.clips);
+        setTexts(parsed.texts);
+        setMode('video');
+        showToast('Opened from dashboard.');
+      } catch (err) {
+        console.error(err);
+        showToast('Could not restore that project.');
+      }
+      return;
+    }
+    if (entry.kind === 'image' && entry.imageBlob) {
+      setImageSource(URL.createObjectURL(entry.imageBlob));
+      setImageName(entry.name);
+      setMode('image');
+      showToast('Opened from dashboard.');
+      return;
+    }
+    showToast('That recent project is incomplete — please try saving again.');
+  }, [showToast]);
+
+  const applyTemplate = useCallback((template: typeof VIDEO_TEMPLATES[number]) => {
+    const mkText = (text: string, y: number, size: number, color = '#ffffff'): TextOverlay => ({
+      id: uid(), text, x: 0.5, y, size, color, start: 0, duration: 4,
+    });
+    const clips: Clip[] = [];
+    const texts = [
+      mkText(template.name, 0.18, 88, '#ffffff'),
+      mkText('Replace with your footage — press Save to pin it to the dashboard', 0.84, 30, '#f5f6f8'),
+    ];
+    setProjectName(template.name);
+    setAspect(template.aspect);
+    setClips(clips);
+    setTexts(texts);
+    setSelection(null);
+    setCurrentTime(0);
+    setMode('video');
+    showToast('Template applied — add your media to make it yours.');
+  }, [showToast]);
+
+  const saveImageToRecent = useCallback(async (name: string, blob: Blob) => {
+    try {
+      const thumbCanvas = document.createElement('canvas');
+      thumbCanvas.width = 320;
+      const img = await createImageBitmap(blob);
+      thumbCanvas.height = Math.max(1, Math.round((img.height / img.width) * 320));
+      const tctx = thumbCanvas.getContext('2d');
+      if (tctx) {
+        tctx.drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
+      }
+      img.close();
+      const thumbnail = thumbCanvas.toDataURL('image/jpeg', 0.6);
+      await putRecentProject({
+        id: crypto.randomUUID(),
+        name,
+        kind: 'image',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        thumbnail,
+        imageBlob: blob,
+      });
+      showToast('Image saved to dashboard — reopen anytime.');
+    } catch (err) {
+      console.error(err);
+      showToast('Could not save image to dashboard.');
+    }
+  }, [showToast]);
 
   const handleExport = useCallback(() => {
     const dur = stateRef.current.duration;
@@ -480,6 +769,72 @@ export default function App() {
     play();
   }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, projectName, showToast]);
 
+  const handleExportMp4 = useCallback(async () => {
+    const dur = stateRef.current.duration;
+    if (dur <= 0) { showToast('Nothing to export yet.'); return; }
+    setMp4Busy(true);
+    const ctx = ensureAudioGraph();
+    syncAudioGraph();
+    cancelAnimationFrame(rafRef.current);
+    playingRef.current = false;
+    setPlaying(false);
+    currentTimeRef.current = 0;
+    setCurrentTime(0);
+    drawFrame(0);
+    const canvas = canvasRef.current;
+    if (!canvas) { setMp4Busy(false); return; }
+    showToast('Recording timeline…');
+    const videoStream = canvas.captureStream(30);
+    const dest = ctx.createMediaStreamDestination();
+    masterGainRef.current?.connect(dest);
+    const combined = new MediaStream([...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+    const mime = pickSupportedMime(['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) ?? 'video/webm';
+    const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    const webmBlob: Blob = await new Promise((resolve) => {
+      recorder.onstop = () => {
+        masterGainRef.current?.disconnect(dest);
+        resolve(new Blob(chunks, { type: mime }));
+      };
+      recorder.start(250);
+      setExportProgress(0);
+      play();
+      const wait = () => {
+        if (currentTimeRef.current >= dur) { recorder.stop(); return; }
+        requestAnimationFrame(wait);
+      };
+      requestAnimationFrame(wait);
+    });
+    setExportProgress(null);
+    showToast('Transcoding to MP4 (this may take a moment)…');
+    try {
+      if (!ffmpegRef.current) {
+        const ffmpeg = new FFmpeg();
+        ffmpegRef.current = ffmpeg;
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+      }
+      const ffmpeg = ffmpegRef.current;
+      await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
+      await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4') as Uint8Array;
+      const mp4Blob = new Blob([data.buffer as ArrayBuffer], { type: 'video/mp4' });
+      const base = projectName.trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80) || 'clipforge';
+      downloadBlob(mp4Blob, `${base}.mp4`);
+      showToast(`Exported MP4 ${(mp4Blob.size / 1_000_000).toFixed(1)} MB — check your downloads.`);
+    } catch (err) {
+      console.error(err);
+      showToast('MP4 transcode failed — try WebM export instead.');
+    } finally {
+      setExportProgress(null);
+      setMp4Busy(false);
+    }
+  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, projectName, showToast]);
+
   /* ------------------------------------------------ keyboard ------------------------------------------------ */
 
   useEffect(() => {
@@ -490,6 +845,16 @@ export default function App() {
       if (e.code === 'Space') {
         e.preventDefault();
         togglePlay();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        redo();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        void saveToRecent();
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         handleDeleteSelection();
@@ -500,7 +865,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [togglePlay, handleDeleteSelection, handleSplit, canSplit]);
+  }, [togglePlay, handleDeleteSelection, handleSplit, canSplit, undo, redo, saveToRecent]);
 
   /* ------------------------------------------------ frame draw on state changes ------------------------------------------------ */
 
@@ -510,6 +875,30 @@ export default function App() {
 
   const hasContent = clips.length + texts.length > 0;
 
+  if (mode === 'home') {
+    return (
+      <Dashboard
+        onNewVideo={handleOpenVideo}
+        onNewImage={handleOpenImage}
+        onImportVideo={handleImportFiles}
+        onImportImage={handleImportImage}
+        onApplyTemplate={applyTemplate}
+        onOpenRecent={openRecent}
+      />
+    );
+  }
+
+  if (mode === 'image' && imageSource) {
+    return (
+      <ImageEditor
+        initialImage={imageSource}
+        initialName={imageName}
+        onClose={() => setMode('home')}
+        onExportRecent={saveImageToRecent}
+      />
+    );
+  }
+
   return (
     <div className="app">
       <TopBar
@@ -518,8 +907,16 @@ export default function App() {
         aspect={aspect}
         onAspectChange={setAspect}
         onExport={handleExport}
+        onExportMp4={handleExportMp4}
         onAddText={handleAddText}
+        onHome={() => setMode('home')}
+        onUndo={undo}
+        onRedo={redo}
+        onSaveProject={handleSaveProject}
+        onSaveToRecent={saveToRecent}
+        onLoadProject={handleLoadProject}
         exportProgress={exportProgress}
+        mp4Busy={mp4Busy}
         canExport={duration > 0}
       />
       <main className="workspace">

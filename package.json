@@ -60,8 +60,18 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["universal"] },
-        { "target": "zip", "arch": ["universal"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
       "icon": "build/icon.icns",
       "category": "public.app-category.video"
@@ -71,7 +81,12 @@
     },
     "linux": {
       "target": [
-        { "target": "AppImage", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png",
       "category": "AudioVideo",
@@ -79,6 +94,10 @@
     }
   },
   "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "@mediapipe/tasks-vision": "^1.2.2",
+    "lucide-react": "^1.67.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
