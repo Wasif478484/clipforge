@@ -110,8 +110,12 @@ export default function Dashboard({
 
   return (
     <div className="dashboard">
+      <div className="dash-orb a" aria-hidden="true" />
+      <div className="dash-orb b" aria-hidden="true" />
+      <div className="dash-orb c" aria-hidden="true" />
+
       {/* Sidebar */}
-      <aside className="dash-sidebar">
+      <aside className="dash-sidebar glass-card">
         <div className="brand">
           <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
             <rect width="64" height="64" rx="14" fill="#14171c" />
@@ -140,8 +144,8 @@ export default function Dashboard({
       <main className="dash-main">
         {/* Top bar */}
         <div className="dash-topbar">
-          <div>
-            <h1 className="dash-title">Studio dashboard</h1>
+          <div className="reveal reveal-d1">
+            <h1 className="dash-title gradient-text">Studio dashboard</h1>
             <p className="dash-sub">Pick up where you left off or start something new.</p>
           </div>
           <div className="dash-actions">
@@ -157,10 +161,10 @@ export default function Dashboard({
 
         {/* Stats */}
         <div className="dash-stats">
-          <div className="dash-stat"><FileVideo size={18} /><div><b>{stats.video}</b><span>video projects</span></div></div>
-          <div className="dash-stat"><ImageIcon size={18} /><div><b>{stats.image}</b><span>image projects</span></div></div>
-          <div className="dash-stat"><LayoutGrid size={18} /><div><b>{recents.length}</b><span>total in recents</span></div></div>
-          <div className="dash-stat"><Sparkles size={18} /><div><b>{loading ? '…' : 'Ready'}</b><span>local studio</span></div></div>
+          <div className="dash-stat glass-card"><FileVideo size={18} /><div><b>{stats.video}</b><span>video projects</span></div></div>
+          <div className="dash-stat glass-card"><ImageIcon size={18} /><div><b>{stats.image}</b><span>image projects</span></div></div>
+          <div className="dash-stat glass-card"><LayoutGrid size={18} /><div><b>{recents.length}</b><span>total in recents</span></div></div>
+          <div className="dash-stat glass-card"><Sparkles size={18} /><div><b>{loading ? '…' : 'Ready'}</b><span>local studio</span></div></div>
         </div>
 
         {/* Create */}
@@ -169,24 +173,24 @@ export default function Dashboard({
             <div className="dash-section-title"><Plus size={15} /> Create</div>
           </div>
           <div className="create-row">
-            <button className="create-card" onClick={onNewVideo}>
+            <button className="create-card glass-card" onClick={onNewVideo}>
               <FileVideo size={28} />
               <b>Video project</b>
               <span>Multi-track timeline, transitions, filters</span>
             </button>
-            <button className="create-card" onClick={onNewImage}>
+            <button className="create-card glass-card" onClick={onNewImage}>
               <ImageIcon size={28} />
               <b>Image project</b>
               <span>Crop, retouch, remove backgrounds</span>
             </button>
-            <label className="create-card" style={{ cursor: 'pointer' }}>
+            <label className="create-card glass-card" style={{ cursor: 'pointer' }}>
               <input type="file" accept="video/*,audio/*,image/*" multiple hidden
                 onChange={(e) => { if (e.target.files?.length) onImportVideo(e.target.files); e.target.value = ''; }} />
               <Clock size={28} />
               <b>Import video</b>
               <span>Start a timeline from files</span>
             </label>
-            <label className="create-card" style={{ cursor: 'pointer' }}>
+            <label className="create-card glass-card" style={{ cursor: 'pointer' }}>
               <input type="file" accept="image/*" multiple hidden
                 onChange={(e) => { if (e.target.files?.length) onImportImage(e.target.files); e.target.value = ''; }} />
               <Eraser size={28} />
@@ -217,7 +221,7 @@ export default function Dashboard({
           ) : (
             <div className="recent-grid">
               {filtered.map((r) => (
-                <div key={r.id} className="recent-card">
+                <div key={r.id} className="recent-card glass-card">
                   {r.thumbnail
                     ? <img className="recent-thumb" src={r.thumbnail} alt={r.name} />
                     : <div className="recent-thumb blank" aria-hidden="true">{r.kind === 'video' ? <FileVideo size={24} /> : <ImageIcon size={24} />}</div>}
@@ -251,7 +255,7 @@ export default function Dashboard({
           </div>
           <div className="template-grid">
             {VIDEO_TEMPLATES.map((t) => (
-              <button key={t.id} className="template-card" onClick={() => onApplyTemplate(t)}>
+              <button key={t.id} className="template-card glass-card" onClick={() => onApplyTemplate(t)}>
                 <div className="template-rail" style={{ background: `linear-gradient(135deg, ${t.accent}, #ec4899)` }} />
                 <div className="template-name">{t.name}</div>
                 <div className="template-desc">{t.desc}</div>
@@ -262,7 +266,7 @@ export default function Dashboard({
 
         {/* Settings + What's new */}
         <div className="dash-settings-grid">
-          <section className="dash-section">
+          <section className="dash-section glass-card reveal reveal-d2">
             <div className="dash-section-head">
               <div className="dash-section-title"><Settings size={15} /> Settings</div>
             </div>
@@ -308,7 +312,7 @@ export default function Dashboard({
             <p className="dash-note"><Info size={12} /> Stored in this browser only — no account needed.</p>
           </section>
 
-          <section className="dash-section">
+          <section className="dash-section glass-card reveal reveal-d2">
             <div className="dash-section-head">
               <div className="dash-section-title"><Clock size={15} /> What's new</div>
             </div>
