@@ -126,3 +126,52 @@ export const ImagePlusIcon = (p: IconProps) => (
     <path d="M12 8v6M9 11h6" />
   </Base>
 );
+
+export const FolderIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </Base>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 6v6l4 2" />
+  </Base>
+);
+
+export const BookIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </Base>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6 9l6 6 6-6" />
+  </Base>
+);
+
+export const LayoutGridIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+  </Base>
+);
+
+export const PencilIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M17 3a2.828 2.828 0 1 1 4 4L8 20H4v-4L17 3z" />
+  </Base>
+);
+
+export const WandIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M15 4V2M15 16v-2M8 9H6M20 9h-2M17.78 6.22l-1.42 1.42M17.78 11.78l-1.42-1.42M12.22 6.22l1.42 1.42M12.22 11.78l1.42-1.42" />
+    <path d="M3 21L14 10" />
+  </Base>
+);
+

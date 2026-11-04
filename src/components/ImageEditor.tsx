@@ -45,6 +45,23 @@ interface Props {
   onExportRecent?: (name: string, blob: Blob) => void;
 }
 
+
+function ToolIcon({ tool }: { tool: Tool }) {
+  const props = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
+  switch (tool) {
+    case 'select': return <svg {...props}><path d='M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z'/><path d='M13 13l6 6'/></svg>;
+    case 'crop': return <svg {...props}><path d='M6 2v14a2 2 0 0 0 2 2h14'/><path d='M2 6h14a2 2 0 0 1 2 2v14'/></svg>;
+    case 'brush': return <svg {...props}><path d='M12 19l7-7 3 3-7 7-3-3z'/><path d='M18 13l-1.5-7.5L2 2l3.5 14.5L13 18'/><path d='M2 2l7.5 1.5'/><path d='M19 22l.01 0'/></svg>;
+    case 'eraser': return <svg {...props}><path d='M20 20H7L3 16l11-11 7 7-3 3 5 5z'/><path d='M6 17l-3 3'/></svg>;
+    case 'text': return <svg {...props}><path d='M4 7V5h16v2'/><path d='M9 20h6'/><path d='M12 5v15'/></svg>;
+    case 'rect': return <svg {...props}><rect x='3' y='3' width='18' height='18' rx='2'/></svg>;
+    case 'circle': return <svg {...props}><circle cx='12' cy='12' r='9'/></svg>;
+    case 'line': return <svg {...props}><path d='M5 19L19 5'/></svg>;
+    case 'arrow': return <svg {...props}><path d='M5 12h14'/><path d='M12 5l7 7-7 7'/></svg>;
+    default: return null;
+  }
+}
+
 export default function ImageEditor({ initialImage, initialName, onClose, onExportRecent }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const levelsCache = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
@@ -578,15 +595,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
         <div className="img-tools">
           {(['select', 'crop', 'brush', 'eraser', 'text', 'rect', 'circle', 'line', 'arrow'] as Tool[]).map((t) => (
             <button key={t} className={`icon-btn ${tool === t ? 'active' : ''}`} onClick={() => setTool(t)} title={t}>
-              {t === 'select' && '↖'}
-              {t === 'crop' && '✂'}
-              {t === 'brush' && '🖌'}
-              {t === 'eraser' && '⌫'}
-              {t === 'text' && 'T'}
-              {t === 'rect' && '▭'}
-              {t === 'circle' && '○'}
-              {t === 'line' && '╱'}
-              {t === 'arrow' && '→'}
+              <ToolIcon tool={t} />
             </button>
           ))}
         </div>

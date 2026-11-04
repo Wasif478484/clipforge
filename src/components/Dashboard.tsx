@@ -1,28 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
-  BookOpen,
-  Clock,
-  Download,
-  Eraser,
-  FileVideo,
-  Film,
-  FolderOpen,
-  Image as ImageIcon,
-  LayoutGrid,
-  Plus,
-  RotateCcw,
-  Sparkles,
-  Trash2,
-  Settings,
-  Info,
-} from 'lucide-react';
-import {
   clearRecentProjects,
   deleteRecentProject,
   listRecentProjects,
   type RecentProject,
 } from '../lib/recent';
 import { loadSettings, resetSettings, saveSettings, type ClipForgeSettings } from '../lib/settings';
+import {
+  FilmIcon,
+  ImageIcon,
+  DownloadIcon,
+  PlusIcon,
+  TypeIcon,
+  TrashIcon,
+  FolderIcon,
+  ClockIcon,
+  SparklesIcon,
+  InfoIcon,
+  BookIcon,
+  ChevronDownIcon,
+  LayoutGridIcon,
+  PencilIcon,
+  WandIcon,
+} from '../icons';
 
 export interface VideoTemplate {
   id: string;
@@ -30,15 +30,16 @@ export interface VideoTemplate {
   desc: string;
   aspect: '16:9' | '9:16' | '1:1';
   accent: string;
+  tag: string;
 }
 
 export const VIDEO_TEMPLATES: VideoTemplate[] = [
-  { id: 'cinematic', name: 'Cinematic Vlog', desc: '16:9 · slow fades and muted grade', aspect: '16:9', accent: '#ec4899' },
-  { id: 'reel',      name: 'Social Reel',    desc: '9:16 · fast cuts with bold caption', aspect: '9:16', accent: '#3b82f6' },
-  { id: 'square',    name: 'Product Grid',   desc: '1:1 · square for social feeds',      aspect: '1:1', accent: '#f59e0b' },
-  { id: 'slideshow', name: 'Photo Slideshow',desc: '16:9 · Ken Burns-style motion',      aspect: '16:9', accent: '#22c55e' },
-  { id: 'minimal',   name: 'Minimal Dark',   desc: '16:9 · muted, letterboxed look',     aspect: '16:9', accent: '#a855f7' },
-  { id: 'vertical',  name: 'Vertical Interview', desc: '9:16 · close-up interview setup', aspect: '9:16', accent: '#14b8a6' },
+  { id: 'cinematic', name: 'Cinematic Vlog', desc: '16:9 · slow fades and muted grade', aspect: '16:9', accent: '#ef4b9a', tag: '16:9' },
+  { id: 'reel',      name: 'Social Reel',    desc: '9:16 · fast cuts, bold caption', aspect: '9:16', accent: '#f6b86a', tag: '9:16' },
+  { id: 'square',    name: 'Product Grid',   desc: '1:1 · square for social feeds',  aspect: '1:1', accent: '#f6cc8b', tag: '1:1' },
+  { id: 'slideshow', name: 'Photo Slideshow',desc: '16:9 · Ken Burns-style motion',  aspect: '16:9', accent: '#e08a6b', tag: '16:9' },
+  { id: 'minimal',   name: 'Minimal Dark',   desc: '16:9 · muted, letterboxed look', aspect: '16:9', accent: '#e9e0cf', tag: '16:9' },
+  { id: 'vertical',  name: 'Vertical Interview', desc: '9:16 · face-first framing',  aspect: '9:16', accent: '#a7c8d8', tag: '9:16' },
 ];
 
 interface Props {
@@ -50,12 +51,14 @@ interface Props {
   onOpenRecent: (r: RecentProject) => void;
 }
 
+const RELEASES = 'https://github.com/Wasif478484/clipforge/releases/latest';
+const REPO = 'https://github.com/Wasif478484/clipforge';
+
 const CHANGE_LOG = [
-  'Dashboard with recent projects stored locally (thumbnails, rename, delete)',
-  'Full project save/load: media, timeline and text overlays',
-  'One-click colour grades in the inspector (Cinematic, Noir, Warm, Cool, Neon)',
-  'MP4 export via ffmpeg.wasm (H.264 + AAC, local only)',
-  'Drag to move with snapping; Ctrl/Cmd+S saves to the dashboard',
+  'Recent projects live locally with frames from your cut',
+  'Save / load projects with media intact',
+  'Colour grades and transitions in the inspector',
+  'MP4 export, backups, full-screen mode',
 ];
 
 const timeAgo = (ts: number): string => {
@@ -65,8 +68,21 @@ const timeAgo = (ts: number): string => {
   if (m < 60) return `${m}m ago`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
 };
+
+function Stat({ icon: Icon, n, label }: { icon: typeof FilmIcon; n: number | string; label: string }) {
+  return (
+    <div className="studio-stat">
+      <div className="studio-stat-icon"><Icon size={18} strokeWidth={1.6} /></div>
+      <div>
+        <div className="studio-stat-n">{n}</div>
+        <div className="studio-stat-l">{label}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function Dashboard({
   onNewVideo,
@@ -84,162 +100,234 @@ export default function Dashboard({
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    try {
-      setRecents(await listRecentProjects());
-    } finally {
-      setLoading(false);
-    }
+    try { setRecents(await listRecentProjects()); }
+    finally { setLoading(false); }
   }, []);
 
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const filtered = query.trim()
     ? recents.filter((r) => (r.name + r.kind).toLowerCase().includes(query.trim().toLowerCase()))
     : recents;
 
   const stats = {
-    total: recents.length,
     video: recents.filter((r) => r.kind === 'video').length,
     image: recents.filter((r) => r.kind === 'image').length,
+    total: recents.length,
+    ready: loading ? '…' : 'Ready',
   };
 
   const updateSetting = <K extends keyof ClipForgeSettings>(key: K, value: ClipForgeSettings[K]) =>
     setSettingsState(saveSettings({ [key]: value }));
 
   return (
-    <div className="dashboard">
-      <div className="dash-orb a" aria-hidden="true" />
-      <div className="dash-orb b" aria-hidden="true" />
-      <div className="dash-orb c" aria-hidden="true" />
+    <div className="studio">
+      {/* ── Ambient background ─────────────────────────────────────────────── */}
+      <div className="studio-bg" aria-hidden="true">
+        <div className="orb orb-a" />
+        <div className="orb orb-b" />
+        <div className="orb orb-c" />
+        <div className="grain" />
+      </div>
 
-      {/* Sidebar */}
-      <aside className="dash-sidebar glass-card">
-        <div className="brand">
-          <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
-            <rect width="64" height="64" rx="14" fill="#14171c" />
-            <path d="M10 24l44-6-2.6 12.4-44 6z" fill="#35e0c0" opacity="0.9" />
-            <path d="M10 34h44v14a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#35e0c0" />
-            <path d="M15 22l5.4-9M27 20l5.4-9M39 18l5.4-9" stroke="#0d0f12" strokeWidth="3.4" strokeLinecap="round" />
-            <path d="M28 40l12 6.2-12 6.2z" fill="#0d0f12" />
+      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
+      <aside className="studio-sidebar" aria-label="Navigation">
+        <div className="studio-brand">
+          <svg className="studio-logo" width="30" height="30" viewBox="0 0 256 256" aria-hidden="true">
+            <rect width="256" height="256" rx="54" fill="#141018"/>
+            <rect x="46" y="62" width="164" height="132" rx="30" fill="#1e1a23"/>
+            <rect x="46" y="54" width="164" height="34" rx="17" fill="#ef4b9a"/>
+            <path d="M68 54l14 34M106 54l14 34M144 54l14 34M182 54l14 34" stroke="#141018" stroke-width="10" stroke-linecap="round"/>
+            <path d="M111 140l38 22-38 22z" fill="#efe9dd"/>
           </svg>
-          <span className="dash-logo">ClipForge</span>
+          <div>
+            <div className="studio-brand-name">ClipForge</div>
+            <div className="studio-brand-tag">Video & image studio</div>
+          </div>
         </div>
 
-        <nav className="dash-nav">
-          <button className="dash-nav-item active" onClick={onNewVideo}><Film size={16} /> Video editor</button>
-          <button className="dash-nav-item" onClick={onNewImage}><ImageIcon size={16} /> Image editor</button>
-          <a className="dash-nav-item" href="https://github.com/Wasif478484/clipforge/releases/latest" target="_blank" rel="noreferrer"><Download size={16} /> Downloads</a>
-          <a className="dash-nav-item" href="https://github.com/Wasif478484/clipforge" target="_blank" rel="noreferrer"><BookOpen size={16} /> Docs & source</a>
-        </nav>
+        <div className="studio-nav">
+          <button className="studio-nav-item is-active" onClick={onNewVideo} aria-current="page">
+            <FilmIcon size={16} strokeWidth={1.7} />
+            <span>Studio</span>
+            <span className="studio-nav-hint">Projects</span>
+          </button>
+          <button className="studio-nav-item" onClick={onNewImage}>
+            <ImageIcon size={16} strokeWidth={1.7} />
+            <span>Retouch</span>
+            <span className="studio-nav-hint">Photo tool</span>
+          </button>
+          <a className="studio-nav-item" href={RELEASES} target="_blank" rel="noreferrer">
+            <DownloadIcon size={16} strokeWidth={1.7} />
+            <span>Download</span>
+            <span className="studio-nav-hint">v0.2.0</span>
+          </a>
+          <a className="studio-nav-item" href={REPO} target="_blank" rel="noreferrer">
+            <BookIcon size={16} strokeWidth={1.7} />
+            <span>Source</span>
+            <span className="studio-nav-hint">MIT</span>
+          </a>
+        </div>
 
-        <div className="dash-privacy">
-          <ImageIcon size={14} />
-          <span>Everything stays on this device — no cloud, no account, no tracking.</span>
+        <div className="studio-local-badge" aria-label="Everything stays on your device">
+          <span className="studio-pulse" />
+          Local‑first — nothing leaves your device
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="dash-main">
-        {/* Top bar */}
-        <div className="dash-topbar">
-          <div className="reveal reveal-d1">
-            <h1 className="dash-title gradient-text">Studio dashboard</h1>
-            <p className="dash-sub">Pick up where you left off or start something new.</p>
+      {/* ── Main ────────────────────────────────────────────────────────── */}
+      <main className="studio-main">
+        {/* Header row */}
+        <header className="studio-header">
+          <div className="studio-kicker">Local studio</div>
+          <div className="studio-hero-row">
+            <div className="studio-hero-copy">
+              <h1 className="studio-title">
+                Pick up your <em>cut</em>, retouch<br />a frame, or start something new.
+              </h1>
+              <p className="studio-sub">
+                A fast, private, open-source video editor and photo tool that lives on your machine — no account, no upload, no telemetry.
+              </p>
+            </div>
+            <div className="studio-hero-media" aria-hidden="true">
+              <div className="studio-frame">
+                <div className="studio-frame-top">
+                  <span className="studio-dot" /><span className="studio-dot" /><span className="studio-dot" />
+                  <span className="studio-frame-title">TIMELINE — Untitled project</span>
+                </div>
+                <div className="studio-scrubber">
+                  <div className="studio-scrubber-fill" />
+                  <div className="studio-scrubber-knob" />
+                </div>
+                <div className="studio-frame-grid">
+                  {['V2', 'V1', 'A1', 'T1'].map((t, i) => (
+                    <div key={t} className={`studio-track studio-track-${i}`}>
+                      <span className="studio-track-id">{t}</span>
+                      <span className="studio-clip studio-clip-a" style={{ left: `${12 + i * 9}%`, width: '42%' }} />
+                      {i < 3 && <span className="studio-clip studio-clip-b" style={{ left: '58%', width: '26%' }} />}
+                    </div>
+                  ))}
+                </div>
+                <div className="studio-frame-footer">
+                  <span>00:18 / 00:42</span>
+                  <span className="studio-frame-badge">4K · H.264</span>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="dash-actions">
-            <label className="dash-search">
+
+          <div className="studio-commands">
+            <label className="studio-search">
+              <FilmIcon size={14} strokeWidth={1.8} />
               <input
                 type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search projects…" aria-label="Search recent projects" />
+                placeholder="Search recent projects…" aria-label="Search recent projects"
+              />
             </label>
-            <button className="btn ghost small" onClick={onNewVideo}><Film size={14} /> Video</button>
-            <button className="btn" onClick={onNewImage}><Plus size={15} /> New image</button>
+            <button className="btn ghost small" onClick={onNewVideo}><FilmIcon size={13} /> Video</button>
+            <button className="btn" onClick={onNewImage}><PlusIcon size={15} /> New image</button>
           </div>
-        </div>
+        </header>
 
-        {/* Stats */}
-        <div className="dash-stats">
-          <div className="dash-stat glass-card"><FileVideo size={18} /><div><b>{stats.video}</b><span>video projects</span></div></div>
-          <div className="dash-stat glass-card"><ImageIcon size={18} /><div><b>{stats.image}</b><span>image projects</span></div></div>
-          <div className="dash-stat glass-card"><LayoutGrid size={18} /><div><b>{recents.length}</b><span>total in recents</span></div></div>
-          <div className="dash-stat glass-card"><Sparkles size={18} /><div><b>{loading ? '…' : 'Ready'}</b><span>local studio</span></div></div>
+        {/* Stats strip */}
+        <div className="studio-stats">
+          <Stat icon={FilmIcon} n={stats.video} label="video projects" />
+          <Stat icon={ImageIcon} n={stats.image} label="image exports" />
+          <Stat icon={LayoutGridIcon} n={stats.total} label="saved projects" />
+          <Stat icon={SparklesIcon} n={stats.ready} label="studio ready" />
         </div>
 
         {/* Create */}
-        <section className="dash-section">
-          <div className="dash-section-head">
-            <div className="dash-section-title"><Plus size={15} /> Create</div>
+        <section className="studio-section" aria-labelledby="create-title">
+          <div className="studio-section-head">
+            <h2 id="create-title" className="studio-section-title"><PlusIcon size={13} strokeWidth={2.2} /> Create</h2>
+            <span className="studio-section-tag">Pick a starting point</span>
           </div>
-          <div className="create-row">
-            <button className="create-card glass-card" onClick={onNewVideo}>
-              <FileVideo size={28} />
-              <b>Video project</b>
-              <span>Multi-track timeline, transitions, filters</span>
+          <div className="studio-create-grid">
+            <button className="studio-create-card warm" onClick={onNewVideo}>
+              <div className="studio-create-icon"><FilmIcon size={22} strokeWidth={1.5} /></div>
+              <div className="studio-create-body">
+                <b>New video project</b>
+                <span>Timeline, tracks, transitions, grades — all in your browser.</span>
+              </div>
+              <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </button>
-            <button className="create-card glass-card" onClick={onNewImage}>
-              <ImageIcon size={28} />
-              <b>Image project</b>
-              <span>Crop, retouch, remove backgrounds</span>
+            <button className="studio-create-card cool" onClick={onNewImage}>
+              <div className="studio-create-icon"><ImageIcon size={22} strokeWidth={1.5} /></div>
+              <div className="studio-create-body">
+                <b>New image project</b>
+                <span>Crop, retouch, background removal — export PNG, JPEG, WebP.</span>
+              </div>
+              <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </button>
-            <label className="create-card glass-card" style={{ cursor: 'pointer' }}>
+            <label className="studio-create-card neutral">
               <input type="file" accept="video/*,audio/*,image/*" multiple hidden
                 onChange={(e) => { if (e.target.files?.length) onImportVideo(e.target.files); e.target.value = ''; }} />
-              <Clock size={28} />
-              <b>Import video</b>
-              <span>Start a timeline from files</span>
+              <div className="studio-create-icon"><WandIcon size={22} strokeWidth={1.5} /></div>
+              <div className="studio-create-body">
+                <b>Import your footage</b>
+                <span>Drop in videos, audio and images to build your timeline.</span>
+              </div>
+              <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </label>
-            <label className="create-card glass-card" style={{ cursor: 'pointer' }}>
+            <label className="studio-create-card neutral">
               <input type="file" accept="image/*" multiple hidden
                 onChange={(e) => { if (e.target.files?.length) onImportImage(e.target.files); e.target.value = ''; }} />
-              <Eraser size={28} />
-              <b>Batch edit</b>
-              <span>Apply one look to many images</span>
+              <div className="studio-create-icon"><ImageIcon size={22} strokeWidth={1.5} /></div>
+              <div className="studio-create-body">
+                <b>Batch image look</b>
+                <span>Apply one look to many images — export them all at once.</span>
+              </div>
+              <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </label>
           </div>
         </section>
 
-        {/* Recent */}
-        <section className="dash-section">
-          <div className="dash-section-head">
-            <div className="dash-section-title"><FolderOpen size={15} /> Recent projects</div>
+        {/* Recent projects */}
+        <section className="studio-section" aria-labelledby="recent-title">
+          <div className="studio-section-head">
+            <h2 id="recent-title" className="studio-section-title"><ClockIcon size={13} strokeWidth={2} /> Recent projects</h2>
             {recents.length > 0 && (
-              <button className="btn ghost small" onClick={() => {
-                void clearRecentProjects().then(refresh);
-              }}><Eraser size={13} /> Clear all</button>
+              <button className="btn ghost small" onClick={() => { void clearRecentProjects().then(refresh); }}>
+                <TrashIcon size={13} /> Clear all
+              </button>
             )}
           </div>
           {loading ? (
-            <div className="dash-empty">Loading…</div>
+            <div className="studio-empty">Loading your recent projects…</div>
           ) : filtered.length === 0 ? (
-            <div className="dash-empty big">
-              <FileVideo size={28} />
-              <p>{query ? 'No projects match that search.' : 'Nothing in recents yet.'}</p>
-              <button className="btn" onClick={onNewVideo}><Plus size={15} /> Create your first project</button>
+            <div className="studio-empty big">
+              <div className="studio-empty-icon"><FilmIcon size={24} strokeWidth={1.5} /></div>
+              <p className="studio-empty-title">{query ? 'No projects match that search' : 'Nothing in recents yet'}</p>
+              <p className="studio-empty-body">{query ? 'Try a different search term.' : 'Create your first project and it will appear here.'}</p>
+              <button className="btn" onClick={onNewVideo}><PlusIcon size={15} /> Create your first project</button>
             </div>
           ) : (
-            <div className="recent-grid">
+            <div className="studio-recent-grid">
               {filtered.map((r) => (
-                <div key={r.id} className="recent-card glass-card">
+                <div key={r.id} className="studio-recent-card">
                   {r.thumbnail
-                    ? <img className="recent-thumb" src={r.thumbnail} alt={r.name} />
-                    : <div className="recent-thumb blank" aria-hidden="true">{r.kind === 'video' ? <FileVideo size={24} /> : <ImageIcon size={24} />}</div>}
-                  <div className="recent-body">
-                    <div className="recent-name" title={r.name}>{r.name}</div>
-                    <div className="recent-meta">{r.kind === 'video' ? 'Video' : 'Image'} · {timeAgo(r.updatedAt)}</div>
+                    ? <img className="studio-recent-thumb" src={r.thumbnail} alt={r.name} />
+                    : <div className="studio-recent-thumb studio-recent-blank" aria-hidden="true">{r.kind === 'video' ? <FilmIcon size={22} /> : <ImageIcon size={22} />}</div>}
+                  <div className="studio-recent-body">
+                    <div className="studio-recent-name" title={r.name}>{r.name}</div>
+                    <div className="studio-recent-meta">{r.kind === 'video' ? 'Video' : 'Image'} · {timeAgo(r.updatedAt)}</div>
                   </div>
-                  <div className="recent-actions">
-                    <button className="recent-open" onClick={() => onOpenRecent(r)} title="Open"><FolderOpen size={15} /></button>
-                    <button className="recent-open danger" onClick={() => setDeleteId(r.id)} title="Delete"><Trash2 size={15} /></button>
+                  <div className="studio-recent-actions">
+                    <button className="studio-icon-btn" onClick={() => onOpenRecent(r)} aria-label={`Open ${r.name}`} title="Open">
+                      <FolderIcon size={16} strokeWidth={1.7} />
+                    </button>
+                    <button className="studio-icon-btn danger" onClick={() => setDeleteId(r.id)} aria-label={`Delete ${r.name}`} title="Delete">
+                      <TrashIcon size={15} strokeWidth={1.7} />
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
           )}
           {deleteId && (
-            <div className="confirm-row">
-              <span>Delete this recent project?</span>
+            <div className="studio-confirm">
+              <span className="studio-confirm-text">Delete this recent project?</span>
               <button className="btn danger small" onClick={() => {
                 void deleteRecentProject(deleteId).then(refresh).then(() => setDeleteId(null));
               }}>Delete</button>
@@ -249,83 +337,89 @@ export default function Dashboard({
         </section>
 
         {/* Templates */}
-        <section className="dash-section">
-          <div className="dash-section-head">
-            <div className="dash-section-title"><Sparkles size={15} /> Starter templates</div>
+        <section className="studio-section" aria-labelledby="templates-title">
+          <div className="studio-section-head">
+            <h2 id="templates-title" className="studio-section-title"><WandIcon size={13} strokeWidth={2} /> Starter looks</h2>
+            <span className="studio-section-tag">Apply to current project</span>
           </div>
-          <div className="template-grid">
+          <div className="studio-template-grid">
             {VIDEO_TEMPLATES.map((t) => (
-              <button key={t.id} className="template-card glass-card" onClick={() => onApplyTemplate(t)}>
-                <div className="template-rail" style={{ background: `linear-gradient(135deg, ${t.accent}, #ec4899)` }} />
-                <div className="template-name">{t.name}</div>
-                <div className="template-desc">{t.desc}</div>
+              <button key={t.id} className="studio-template" onClick={() => onApplyTemplate(t)}>
+                <div className="studio-template-preview" data-accent={t.id}>
+                  <div className="studio-template-letterbox" />
+                  <span className="studio-template-tag">{t.tag}</span>
+                </div>
+                <div className="studio-template-body">
+                  <b>{t.name}</b>
+                  <span>{t.desc}</span>
+                </div>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Settings + What's new */}
-        <div className="dash-settings-grid">
-          <section className="dash-section glass-card reveal reveal-d2">
-            <div className="dash-section-head">
-              <div className="dash-section-title"><Settings size={15} /> Settings</div>
+        {/* Settings + update */}
+        <div className="studio-bottom-grid">
+          <section className="studio-section" aria-labelledby="settings-title">
+            <div className="studio-section-head">
+              <h2 id="settings-title" className="studio-section-title"><PencilIcon size={13} strokeWidth={2} /> Settings</h2>
             </div>
-            <label className="field">
-              <span>Default canvas aspect</span>
-              <select
+            <div className="studio-field">
+              <label className="studio-field-label" htmlFor="aspect-select">Default aspect</label>
+              <select id="aspect-select" className="studio-select"
                 value={settings.defaultAspect}
-                onChange={(e) => updateSetting('defaultAspect', e.target.value as ClipForgeSettings['defaultAspect'])}
-              >
-                <option value="16:9">16:9</option>
-                <option value="9:16">9:16</option>
-                <option value="1:1">1:1</option>
+                onChange={(e) => updateSetting('defaultAspect', e.target.value as ClipForgeSettings['defaultAspect'])}>
+                <option value="16:9">16:9 landscape</option>
+                <option value="9:16">9:16 vertical</option>
+                <option value="1:1">1:1 square</option>
               </select>
-            </label>
-            <label className="field">
-              <span>Default export format</span>
-              <select
+            </div>
+            <div className="studio-field">
+              <label className="studio-field-label" htmlFor="export-format">Default export</label>
+              <select id="export-format" className="studio-select"
                 value={settings.defaultExportFormat}
-                onChange={(e) => updateSetting('defaultExportFormat', e.target.value as ClipForgeSettings['defaultExportFormat'])}
-              >
-                <option value="webm">WebM (VP9)</option>
-                <option value="mp4">MP4 (H.264)</option>
+                onChange={(e) => updateSetting('defaultExportFormat', e.target.value as ClipForgeSettings['defaultExportFormat'])}>
+                <option value="webm">WebM (VP9) — smaller</option>
+                <option value="mp4">MP4 (H.264) — widest</option>
               </select>
-            </label>
-            <label className="field">
-              <span>Thumbnail quality — {Math.round(settings.thumbnailQuality * 100)}%</span>
-              <input
-                type="range" min={0.3} max={0.85} step={0.05} value={settings.thumbnailQuality}
-                onChange={(e) => updateSetting('thumbnailQuality', Number(e.target.value))}
-              />
-            </label>
-            <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <input
-                type="checkbox"
-                checked={settings.showInterfaceHints}
-                onChange={(e) => updateSetting('showInterfaceHints', e.target.checked)}
-              />
-              <span>Show workspace hints</span>
+            </div>
+            <div className="studio-field">
+              <label className="studio-field-label" htmlFor="thumb-quality">Thumbnail quality · {Math.round(settings.thumbnailQuality * 100)}%</label>
+              <input id="thumb-quality" type="range" min={0.3} max={0.85} step={0.05} value={settings.thumbnailQuality}
+                onChange={(e) => updateSetting('thumbnailQuality', Number(e.target.value))} />
+            </div>
+            <label className="studio-check">
+              <input type="checkbox" checked={settings.showInterfaceHints} onChange={(e) => updateSetting('showInterfaceHints', e.target.checked)} />
+              <span>Show keyboard hints in the editor</span>
             </label>
             <button className="btn ghost small" onClick={() => setSettingsState(resetSettings())}>
-              <RotateCcw size={13} /> Reset to defaults
+              <TypeIcon size={13} /> Reset to defaults
             </button>
-            <p className="dash-note"><Info size={12} /> Stored in this browser only — no account needed.</p>
+            <p className="studio-note"><InfoIcon size={12} /> Stored in this browser only — never uploaded.</p>
           </section>
 
-          <section className="dash-section glass-card reveal reveal-d2">
-            <div className="dash-section-head">
-              <div className="dash-section-title"><Clock size={15} /> What's new</div>
+          <section className="studio-section" aria-labelledby="news-title">
+            <div className="studio-section-head">
+              <h2 id="news-title" className="studio-section-title"><BookIcon size={13} strokeWidth={2} /> What's new</h2>
             </div>
-            <ul className="changelog">
+            <ul className="studio-changelog">
               {CHANGE_LOG.map((c) => <li key={c}>{c}</li>)}
             </ul>
-            <p className="dash-note">Recent projects are stored locally (up to your browser's IndexedDB quota).</p>
+            <div className="studio-news-foot">
+              <span className="studio-news-kbd"><kbd>Ctrl</kbd>+<kbd>S</kbd></span>
+              <span className="studio-news-note">saves a full snapshot to recents</span>
+            </div>
+            <div className="studio-news-foot">
+              <span className="studio-news-kbd"><kbd>Ctrl</kbd>+<kbd>B</kbd></span>
+              <span className="studio-news-note">splits the selected clip at the playhead</span>
+            </div>
           </section>
         </div>
 
-        <div className="dash-foot">
-          ClipForge is free and open source (MIT) — independent, not affiliated with CapCut or ByteDance.
-        </div>
+        <footer className="studio-foot">
+          <span>ClipForge is free and open source (MIT). Independent project — not affiliated with CapCut or ByteDance.</span>
+          <a href={REPO} target="_blank" rel="noreferrer" className="studio-foot-link">github.com/Wasif478484/clipforge</a>
+        </footer>
       </main>
     </div>
   );
