@@ -52,6 +52,8 @@ export interface Clip {
   speed: number; // 1.0 = normal
   transitionIn: 'none' | 'fade' | 'crossfade' | 'slide';
   transitionOut: 'none' | 'fade';
+  fadeIn: number;   // seconds
+  fadeOut: number;  // seconds
 }
 
 export interface TextOverlay {
@@ -65,6 +67,7 @@ export interface TextOverlay {
   color: string;
   start: number;
   duration: number;
+  animation: 'none' | 'fade' | 'slide-up' | 'typewriter' | 'pop' | 'bounce';
 }
 
 export type Selection = { type: 'clip' | 'text'; id: string } | null;

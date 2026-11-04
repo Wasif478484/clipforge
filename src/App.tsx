@@ -28,6 +28,7 @@ export default function App() {
   const [generatingSample, setGeneratingSample] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [mp4Busy, setMp4Busy] = useState(false);
+  const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
 
   const [mode, setMode] = useState<'home' | 'video' | 'image'>('home');
   const [imageSource, setImageSource] = useState<string | null>(null);
@@ -103,6 +104,43 @@ export default function App() {
   }, [assets]);
 
   const showToast = useCallback((message: string) => setToast(message), []);
+
+  // Decode audio waveforms for audio assets.
+  useEffect(() => {
+    const audioAssets = assets.filter((a) => a.kind === 'audio');
+    if (audioAssets.length === 0) return;
+    let cancelled = false;
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    (async () => {
+      for (const asset of audioAssets) {
+        if (waveforms[asset.id]) continue;
+        try {
+          const res = await fetch(asset.url);
+          const buf = await res.arrayBuffer();
+          const audioBuf = await ctx.decodeAudioData(buf);
+          const data = audioBuf.getChannelData(0);
+          const buckets = 80;
+          const bucketSize = Math.floor(data.length / buckets);
+          const peaks: number[] = [];
+          for (let i = 0; i < buckets; i++) {
+            let max = 0;
+            for (let j = 0; j < bucketSize; j++) {
+              const v = Math.abs(data[i * bucketSize + j] ?? 0);
+              if (v > max) max = v;
+            }
+            peaks.push(max);
+          }
+          if (!cancelled) {
+            setWaveforms((prev) => ({ ...prev, [asset.id]: peaks }));
+          }
+        } catch {
+          // ignore decode errors
+        }
+      }
+      await ctx.close();
+    })();
+    return () => { cancelled = true; };
+  }, [assets]);
 
   useEffect(() => {
     if (!toast) return;
@@ -244,13 +282,29 @@ export default function App() {
 
     for (const overlay of textList) {
       if (t < overlay.start || t >= overlay.start + overlay.duration) continue;
+      const progress = (t - overlay.start) / overlay.duration;
       const scale = H / 720;
       const size = overlay.size * scale;
-      const lines = overlay.text.split('\n');
       const lineHeight = size * 1.18;
-      const x = overlay.x * W;
-      const y = overlay.y * H;
+      let x = overlay.x * W;
+      let y = overlay.y * H;
+      let alpha = 1;
+      const anim = overlay.animation ?? 'none';
+      if (anim === 'fade') {
+        if (progress < 0.15) alpha = progress / 0.15;
+        if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      } else if (anim === 'slide-up') {
+        if (progress < 0.2) { const p = progress / 0.2; alpha = p; y += (1 - p) * 40; }
+        if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      } else if (anim === 'pop') {
+        if (progress < 0.15) { const p = progress / 0.15; alpha = p; }
+        if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      } else if (anim === 'bounce') {
+        if (progress < 0.25) { const p = progress / 0.25; alpha = Math.min(1, p * 2); y -= Math.sin(p * Math.PI) * 30; }
+        if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      }
       ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
       ctx.font = `800 ${size}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -258,8 +312,14 @@ export default function App() {
       ctx.lineWidth = Math.max(2, size * 0.16);
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.62)';
       ctx.fillStyle = overlay.color;
-      lines.forEach((line: string, i: number) => {
-        const ly = y + (i - (lines.length - 1) / 2) * lineHeight;
+      let displayText = overlay.text;
+      if (anim === 'typewriter') {
+        const chars = Math.floor(progress * overlay.text.length);
+        displayText = overlay.text.slice(0, chars);
+      }
+      const displayLines = displayText.split('\n');
+      displayLines.forEach((line: string, i: number) => {
+        const ly = y + (i - (displayLines.length - 1) / 2) * lineHeight;
         ctx.strokeText(line, x, ly);
         ctx.fillText(line, x, ly);
       });
@@ -460,6 +520,8 @@ export default function App() {
       speed: 1,
       transitionIn: 'none',
       transitionOut: 'none',
+      fadeIn: 0,
+      fadeOut: 0,
     };
     setClips((prev) => [...prev, clip]);
     setSelection({ type: 'clip', id: clip.id });
@@ -475,6 +537,7 @@ export default function App() {
       color: '#ffffff',
       start: clamp(currentTimeRef.current, 0, Math.max(0, stateRef.current.duration)),
       duration: 3,
+      animation: 'fade',
     };
     setTexts((prev) => [...prev, overlay]);
     setSelection({ type: 'text', id: overlay.id });
@@ -675,7 +738,7 @@ export default function App() {
 
   const applyTemplate = useCallback((template: typeof VIDEO_TEMPLATES[number]) => {
     const mkText = (text: string, y: number, size: number, color = '#ffffff'): TextOverlay => ({
-      id: uid(), text, x: 0.5, y, size, color, start: 0, duration: 4,
+      id: uid(), text, x: 0.5, y, size, color, start: 0, duration: 4, animation: 'fade',
     });
     const clips: Clip[] = [];
     const texts = [
@@ -953,6 +1016,7 @@ export default function App() {
         clips={clips}
         texts={texts}
         assetKindById={assetKindById}
+        waveforms={waveforms}
         duration={duration}
         currentTime={currentTime}
         pxPerSec={pxPerSec}

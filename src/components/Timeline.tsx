@@ -7,6 +7,7 @@ interface Props {
   clips: Clip[];
   texts: TextOverlay[];
   assetKindById: Record<string, MediaKind | undefined>;
+  waveforms: Record<string, number[]>;
   duration: number;
   currentTime: number;
   pxPerSec: number;
@@ -37,6 +38,7 @@ export default function Timeline({
   clips,
   texts,
   assetKindById,
+  waveforms,
   duration,
   currentTime,
   pxPerSec,
@@ -155,6 +157,13 @@ export default function Timeline({
       >
         <div className="trim left" data-trim="left" />
         <span className="clip-name">{clip.name}</span>
+        {kind === 'audio' && waveforms[clip.assetId] && (
+          <span className="waveform" aria-hidden="true">
+            {waveforms[clip.assetId].map((p, i) => (
+              <span key={i} className="wave-bar" style={{ height: `${Math.max(2, p * 100)}%` }} />
+            ))}
+          </span>
+        )}
         <div className="trim right" data-trim="right" />
       </div>
     );

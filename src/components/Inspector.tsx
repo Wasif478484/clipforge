@@ -200,6 +200,17 @@ export default function Inspector({
               </div>
             </div>
             <div className="field">
+              <label>Animation</label>
+              <select value={text.animation} onChange={(e) => onChangeText(text.id, { animation: e.target.value as TextOverlay['animation'] })}>
+                <option value="none">None</option>
+                <option value="fade">Fade in/out</option>
+                <option value="slide-up">Slide up</option>
+                <option value="typewriter">Typewriter</option>
+                <option value="pop">Pop</option>
+                <option value="bounce">Bounce</option>
+              </select>
+            </div>
+            <div className="field">
               <label>Horizontal — {Math.round(text.x * 100)}%</label>
               <input type="range" min={0} max={1} step={0.01} value={text.x} onChange={(e) => onChangeText(text.id, { x: Number(e.target.value) })} />
             </div>
