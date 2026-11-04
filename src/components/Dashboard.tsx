@@ -170,7 +170,6 @@ export default function Dashboard({
         </div>
 
         <div className="studio-local-badge" aria-label="Everything stays on your device">
-          <span className="studio-pulse" />
           Local‑first — nothing leaves your device
         </div>
       </aside>
@@ -179,7 +178,6 @@ export default function Dashboard({
       <main className="studio-main">
         {/* Header row */}
         <header className="studio-header">
-          <div className="studio-kicker">Local studio</div>
           <div className="studio-hero-row">
             <div className="studio-hero-copy">
               <h1 className="studio-title">
