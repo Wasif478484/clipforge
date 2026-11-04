@@ -598,7 +598,16 @@ button:disabled { cursor: default; }
 .layer-vis { background: transparent; border: 0; color: var(--ink-subtle); font-size: 9px; font-weight: 800; width: 26px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.1em; }
 .layer-vis:hover { color: var(--gold); }
 .layer-name { flex: 1; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
-.blend-select { background: var(--surface-3); border: 1px solid var(--hairline); color: var(--ink); border-radius: var(--r-sm); padding: 2px 4px; font-size: 9px; }
+.curve-editor { display: flex; justify-content: center; margin: 8px 0 12px; }
+.curve-canvas {
+  width: 200px; height: 200px; border-radius: var(--r-md);
+  border: 1px solid var(--hairline-strong); background: var(--surface-2);
+  cursor: crosshair; touch-action: none;
+}
+.blend-select {
+  background: var(--surface-3); border: 1px solid var(--hairline); color: var(--ink);
+  border-radius: var(--r-sm); padding: 2px 4px; font-size: 9px;
+}
 .layer-btn { background: transparent; border: 0; color: var(--ink-subtle); font-size: 13px; padding: 3px 4px; border-radius: 6px; }
 .layer-btn:hover { background: var(--surface-3); color: var(--ink); }
 .layer-btn.danger:hover { color: var(--red); }

@@ -210,8 +210,18 @@ export default function App() {
       const gain = gainByClip.current.get(clip.id);
       if (!gain) continue;
       const active = t >= clip.start && t < clip.start + clip.duration;
-      const target = active && !clip.muted ? clip.volume : 0;
-      gain.gain.setTargetAtTime(target, now, 0.03);
+      let vol = active && !clip.muted ? clip.volume : 0;
+      if (active && !clip.muted) {
+        const elapsed = t - clip.start;
+        const remaining = clip.start + clip.duration - t;
+        if (clip.volumeFadeIn > 0 && elapsed < clip.volumeFadeIn) {
+          vol *= Math.max(0, elapsed / clip.volumeFadeIn);
+        }
+        if (clip.volumeFadeOut > 0 && remaining < clip.volumeFadeOut) {
+          vol *= Math.max(0, remaining / clip.volumeFadeOut);
+        }
+      }
+      gain.gain.setTargetAtTime(vol, now, 0.03);
     }
   }, []);
 
@@ -522,6 +532,8 @@ export default function App() {
       transitionOut: 'none',
       fadeIn: 0,
       fadeOut: 0,
+      volumeFadeIn: 0,
+      volumeFadeOut: 0,
     };
     setClips((prev) => [...prev, clip]);
     setSelection({ type: 'clip', id: clip.id });

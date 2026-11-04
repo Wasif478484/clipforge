@@ -54,6 +54,8 @@ export interface Clip {
   transitionOut: 'none' | 'fade';
   fadeIn: number;   // seconds
   fadeOut: number;  // seconds
+  volumeFadeIn: number;   // seconds
+  volumeFadeOut: number;  // seconds
 }
 
 export interface TextOverlay {

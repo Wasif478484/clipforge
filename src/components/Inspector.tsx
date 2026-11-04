@@ -71,6 +71,18 @@ export default function Inspector({
               <input type="range" min={0} max={1} step={0.01} value={clip.volume}
                 onChange={(e) => onChangeClip(clip.id, { volume: Number(e.target.value) })} />
             </div>
+            <div className="field-row">
+              <div className="field">
+                <label>Fade in (s)</label>
+                <input type="number" min={0} max={clip.duration} step={0.1} value={clip.volumeFadeIn.toFixed(1)}
+                  onChange={(e) => onChangeClip(clip.id, { volumeFadeIn: Math.max(0, Number(e.target.value)) })} />
+              </div>
+              <div className="field">
+                <label>Fade out (s)</label>
+                <input type="number" min={0} max={clip.duration} step={0.1} value={clip.volumeFadeOut.toFixed(1)}
+                  onChange={(e) => onChangeClip(clip.id, { volumeFadeOut: Math.max(0, Number(e.target.value)) })} />
+              </div>
+            </div>
             <div className="field">
               <label>
                 <input type="checkbox" checked={clip.muted} onChange={(e) => onChangeClip(clip.id, { muted: e.target.checked })} />{' '}
