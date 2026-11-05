@@ -100,6 +100,23 @@ export default function Timeline({
       const o = drag.orig;
       if (drag.mode === 'move') {
         let newStart = clamp(o.start + dx, 0, totalSeconds);
+        // vertical track change: find the lane under the pointer
+        const lane = document.elementFromPoint(e.clientX, e.clientY)?.closest('.track-lane') as HTMLElement | null;
+        const targetTrackId = lane?.dataset.trackId ?? null;
+        if (targetTrackId) {
+          const clip = clips.find((c) => c.id === drag.id);
+          const assetKind = clip ? assetKindById[clip.assetId] : undefined;
+          const track = TRACKS.find((tr) => tr.id === targetTrackId);
+          const compatible =
+            track != null && assetKind != null &&
+            (assetKind === 'audio' ? track.kind === 'audio' : track.kind === 'video');
+          setDropTrackId(compatible ? targetTrackId : null);
+          if (compatible && track && (clip?.trackId ?? '') !== targetTrackId) {
+            onPatchClip(drag.id, { trackId: targetTrackId });
+          }
+        } else {
+          setDropTrackId(null);
+        }
         // snap to other clips' edges on the same track
         const others = clips.filter((c) => c.id !== drag.id && c.trackId === (clips.find((x) => x.id === drag.id)?.trackId));
         for (const o2 of others) {
@@ -133,6 +150,7 @@ export default function Timeline({
 
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (dragRef.current) {
+      setDropTrackId(null);
       dragRef.current = null;
       try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* already released */ }
     }
