@@ -13,6 +13,7 @@ interface Props {
   pxPerSec: number;
   onPxPerSecChange: (v: number) => void;
   selection: Selection;
+  selectedIds: string[];
   onSelect: (sel: Selection, shiftKey?: boolean) => void;
   onSeek: (t: number) => void;
   onPatchClip: (id: string, patch: Partial<Clip>) => void;
@@ -45,6 +46,7 @@ export default function Timeline({
   pxPerSec,
   onPxPerSecChange,
   selection,
+  selectedIds,
   onSelect,
   onSeek,
   onPatchClip,
@@ -159,7 +161,7 @@ export default function Timeline({
   const renderClip = (clip: Clip) => {
     const assetKind = assetKindById[clip.assetId];
     const kind = assetKind ?? 'video';
-    const selected = selection?.type === 'clip' && selection.id === clip.id;
+    const selected = selectedIds.includes(clip.id);
     return (
       <div
         key={clip.id}
@@ -167,7 +169,7 @@ export default function Timeline({
         style={{ left: clip.start * pxPerSec, width: Math.max(24, clip.duration * pxPerSec) }}
         title={`${clip.name} · ${clip.duration.toFixed(2)}s`}
         onPointerDown={(e) => {
-          onSelect({ type: 'clip', id: clip.id });
+          onSelect({ type: 'clip', id: clip.id }, e.shiftKey);
           const mode = (e.target as HTMLElement).dataset.trim as 'left' | 'right' | undefined;
           startDrag(e, mode
             ? { kind: 'clip', mode, id: clip.id, startClientX: e.clientX, orig: { start: clip.start, duration: clip.duration, trimStart: clip.trimStart, trimEnd: clip.trimEnd } }

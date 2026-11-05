@@ -25,6 +25,7 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pxPerSec, setPxPerSec] = useState(45);
   const [toast, setToast] = useState<string | null>(null);
   const [generatingSample, setGeneratingSample] = useState(false);
@@ -55,6 +56,7 @@ export default function App() {
   const historyRef = useRef<{ past: string[]; present: string; future: string[] }>({ past: [], present: '', future: [] });
   const skipHistoryRef = useRef(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
+  const clipboardRef = useRef<Clip[]>([]);
   const stateRef = useRef({ assets, clips, texts, duration: 0 });
 
 
@@ -778,13 +780,77 @@ export default function App() {
   }, []);
 
   const handleDeleteSelection = useCallback(() => {
+    const ids = new Set(selectedIds);
     setSelection((sel) => {
-      if (!sel) return sel;
-      if (sel.type === 'clip') setClips((prev) => prev.filter((c) => c.id !== sel.id));
-      else setTexts((prev) => prev.filter((t) => t.id !== sel.id));
+      if (sel?.type === 'clip') ids.add(sel.id);
+      if (ids.size > 0) {
+        setClips((prev) => prev.filter((c) => {
+          if (!ids.has(c.id)) return true;
+          const gain = gainByClip.current.get(c.id);
+          if (gain) { try { gain.disconnect(); } catch { /* noop */ } gainByClip.current.delete(c.id); }
+          return false;
+        }));
+        if (sel?.type === 'text') setTexts((prev) => prev.filter((t) => t.id !== sel.id));
+        return null;
+      }
+      if (sel?.type === 'text') {
+        setTexts((prev) => prev.filter((t) => t.id !== sel.id));
+        return null;
+      }
       return null;
     });
+    setSelectedIds([]);
+  }, [selectedIds]);
+
+  const handleSelect = useCallback((sel: Selection, shiftKey?: boolean) => {
+    setSelection(sel);
+    if (sel?.type === 'clip') {
+      setSelectedIds((prev) => {
+        if (!shiftKey) return [sel.id];
+        return prev.includes(sel.id) ? prev.filter((id) => id !== sel.id) : [...prev, sel.id];
+      });
+    } else {
+      setSelectedIds([]);
+    }
   }, []);
+
+  const cloneClips = useCallback((sources: Clip[], baseStart: number) => {
+    if (sources.length === 0) return;
+    const minStart = Math.min(...sources.map((c) => c.start));
+    const clones: Clip[] = sources.map((c) => ({
+      ...c,
+      id: uid(),
+      name: `${c.name} copy`,
+      start: Math.max(0, baseStart + (c.start - minStart)),
+    }));
+    setClips((prev) => [...prev, ...clones]);
+    setSelection(clones.length === 1 ? { type: 'clip', id: clones[0].id } : null);
+    setSelectedIds(clones.map((c) => c.id));
+  }, []);
+
+  const copySelection = useCallback(() => {
+    const ids = selectedIds.length > 0 ? selectedIds : selection?.type === 'clip' ? [selection.id] : [];
+    const sources = stateRef.current.clips.filter((c) => ids.includes(c.id));
+    if (sources.length === 0) return;
+    clipboardRef.current = sources;
+    showToast(`Copied ${sources.length} clip${sources.length === 1 ? '' : 's'}.`);
+  }, [selectedIds, selection, showToast]);
+
+  const pasteClipboard = useCallback(() => {
+    const sources = clipboardRef.current;
+    if (sources.length === 0) return;
+    cloneClips(sources, currentTimeRef.current);
+    showToast('Pasted at the playhead.');
+  }, [cloneClips, showToast]);
+
+  const duplicateSelection = useCallback(() => {
+    const ids = selectedIds.length > 0 ? selectedIds : selection?.type === 'clip' ? [selection.id] : [];
+    const sources = stateRef.current.clips.filter((c) => ids.includes(c.id));
+    if (sources.length > 0) {
+      cloneClips(sources, Math.min(...sources.map((c) => c.start + c.duration)));
+      showToast(`Duplicated ${sources.length} clip${sources.length === 1 ? '' : 's'}.`);
+    }
+  }, [selectedIds, selection, cloneClips, showToast]);
 
   const patchClip = useCallback((id: string, patch: Partial<Clip>) => {
     setClips((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
@@ -1220,6 +1286,15 @@ export default function App() {
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         handleDeleteSelection();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        copySelection();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        pasteClipboard();
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        duplicateSelection();
       } else if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
         e.preventDefault();
         if (canSplit) handleSplit();
@@ -1227,7 +1302,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [togglePlay, handleDeleteSelection, handleSplit, canSplit, undo, redo, saveToRecent]);
+  }, [togglePlay, handleDeleteSelection, handleSplit, canSplit, undo, redo, saveToRecent, copySelection, pasteClipboard, duplicateSelection]);
 
   /* ------------------------------------------------ frame draw on state changes ------------------------------------------------ */
 
@@ -1334,7 +1409,8 @@ export default function App() {
         pxPerSec={pxPerSec}
         onPxPerSecChange={setPxPerSec}
         selection={selection}
-        onSelect={setSelection}
+        selectedIds={selectedIds}
+        onSelect={handleSelect}
         onSeek={seek}
         onPatchClip={patchClip}
         onPatchText={patchText}
