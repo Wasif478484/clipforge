@@ -378,7 +378,7 @@ export default function App() {
       let x = overlay.x * W;
       let y = overlay.y * H;
       let alpha = 1;
-      let scale = 1;
+      let textScale = 1;
       const anim = overlay.animation ?? 'none';
       if (anim === 'fade') {
         if (progress < 0.15) alpha = progress / 0.15;
@@ -394,14 +394,14 @@ export default function App() {
           const p = progress / 0.15;
           alpha = p;
           // overshoot: 0.6 → 1.1 → 1 across the window
-          scale = p < 0.6 ? 0.6 + (p / 0.6) * 0.5 : 1.1 - ((p - 0.6) / 0.4) * 0.1;
+          textScale = p < 0.6 ? 0.6 + (p / 0.6) * 0.5 : 1.1 - ((p - 0.6) / 0.4) * 0.1;
         }
         if (progress > 0.85) alpha = (1 - progress) / 0.15;
       } else if (anim === 'bounce') {
         if (progress < 0.25) { const p = progress / 0.25; alpha = Math.min(1, p * 2); y -= Math.sin(p * Math.PI) * 30; }
         if (progress > 0.85) alpha = (1 - progress) / 0.15;
       } else if (anim === 'scale-in') {
-        if (progress < 0.2) { const p = progress / 0.2; alpha = p; scale = 0.5 + p * 0.5; }
+        if (progress < 0.2) { const p = progress / 0.2; alpha = p; textScale = 0.5 + p * 0.5; }
         if (progress > 0.85) alpha = (1 - progress) / 0.15;
       } else if (anim === 'glitch') {
         if (progress < 0.1) alpha = progress / 0.1;
@@ -414,9 +414,9 @@ export default function App() {
       }
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-      if (scale !== 1) {
+      if (textScale !== 1) {
         ctx.translate(x, y);
-        ctx.scale(scale, scale);
+        ctx.scale(textScale, textScale);
         ctx.translate(-x, -y);
       }
       ctx.font = `800 ${size}px Inter, system-ui, sans-serif`;
