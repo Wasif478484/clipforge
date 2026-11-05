@@ -1,4 +1,4 @@
-import { useMemo, useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import { useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay } from '../types';
 import { clamp } from '../util';
 import { FilmIcon, MusicIcon, TypeIcon } from '../icons';
@@ -13,10 +13,11 @@ interface Props {
   pxPerSec: number;
   onPxPerSecChange: (v: number) => void;
   selection: Selection;
-  onSelect: (sel: Selection) => void;
+  onSelect: (sel: Selection, shiftKey?: boolean) => void;
   onSeek: (t: number) => void;
   onPatchClip: (id: string, patch: Partial<Clip>) => void;
   onPatchText: (id: string, patch: Partial<TextOverlay>) => void;
+  onDropAsset: (assetId: string, trackId: string, time: number) => void;
 }
 
 type DragState =
@@ -48,8 +49,10 @@ export default function Timeline({
   onSeek,
   onPatchClip,
   onPatchText,
+  onDropAsset,
 }: Props) {
   const dragRef = useRef<DragState>(null);
+  const [dropTrackId, setDropTrackId] = useState<string | null>(null);
 
   const totalSeconds = Math.max(duration + 30, 60);
   const totalWidth = totalSeconds * pxPerSec;
@@ -244,7 +247,29 @@ export default function Timeline({
                 <TrackIcon kind={track.kind} />
                 <span>{track.name}</span>
               </div>
-              <div className="track-lane">
+              <div
+                className={`track-lane${dropTrackId === track.id ? ' drop-target' : ''}`}
+                data-track-id={track.id}
+                onDragOver={(e) => {
+                  const assetId = e.dataTransfer.types.includes('application/x-clipforge-asset');
+                  if (!assetId) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'copy';
+                  setDropTrackId(track.id);
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget === e.target) setDropTrackId((id) => (id === track.id ? null : id));
+                }}
+                onDrop={(e: ReactDragEvent<HTMLDivElement>) => {
+                  e.preventDefault();
+                  setDropTrackId(null);
+                  const assetId = e.dataTransfer.getData('application/x-clipforge-asset');
+                  if (!assetId) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const time = clamp((e.clientX - rect.left) / pxPerSec, 0, totalSeconds);
+                  onDropAsset(assetId, track.id, time);
+                }}
+              >
                 {track.kind === 'text'
                   ? texts.map(renderText)
                   : clipsInLane(track.id).map(renderClip)}

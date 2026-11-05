@@ -76,7 +76,12 @@ export default function MediaPanel({
             {assets.map((asset) => {
               const KindIcon = KIND_ICON[asset.kind];
               return (
-                <li className="asset" key={asset.id}>
+                <li className="asset" key={asset.id} draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/x-clipforge-asset', asset.id);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                >
                   <div className={`asset-icon ${asset.kind}`} aria-hidden="true">
                     <KindIcon size={19} strokeWidth={1.8} />
                   </div>

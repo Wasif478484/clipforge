@@ -713,15 +713,12 @@ export default function App() {
     Math.max(0, ...clips.filter((c) => c.trackId === trackId).map((c) => c.start + c.duration)),
     [clips]);
 
-  const handleAddToTimeline = useCallback((assetId: string) => {
-    const asset = assets.find((a) => a.id === assetId);
-    if (!asset) return;
-    const trackId = asset.kind === 'audio' ? 'a1' : 'v1';
-    const start = trackEnd(trackId);
+  /** Shared clip-creation used by the + button and timeline drag-and-drop. */
+  const createClipOnTrack = useCallback((asset: MediaAsset, trackId: string, start: number, push: (updater: (prev: Clip[]) => Clip[]) => void) => {
     const length = asset.kind === 'image' ? Math.min(5, asset.duration) : asset.duration;
     const clip: Clip = {
       id: uid(),
-      assetId,
+      assetId: asset.id,
       trackId,
       name: asset.name,
       start,
@@ -741,9 +738,28 @@ export default function App() {
       volumeFadeIn: 0,
       volumeFadeOut: 0,
     };
-    setClips((prev) => [...prev, clip]);
+    push((prev) => [...prev, clip]);
     setSelection({ type: 'clip', id: clip.id });
-  }, [assets, trackEnd]);
+  }, []);
+
+  const handleAddToTimeline = useCallback((assetId: string) => {
+    const asset = assets.find((a) => a.id === assetId);
+    if (!asset) return;
+    const trackId = asset.kind === 'audio' ? 'a1' : 'v1';
+    const start = trackEnd(trackId);
+    createClipOnTrack(asset, trackId, start, setClips);
+  }, [assets, trackEnd, createClipOnTrack]);
+
+  /** Create a clip for `asset` at `time` on `trackId` (drag-and-drop target). */
+  const handleDropAsset = useCallback((assetId: string, trackId: string, time: number) => {
+    const asset = assets.find((a) => a.id === assetId);
+    if (!asset) return;
+    // track compatibility: audio only on A1, video on V1/V2, text on T1
+    if (asset.kind === 'audio' && trackId !== 'a1') return;
+    if (asset.kind !== 'audio' && trackId !== 'v1' && trackId !== 'v2') return;
+    const start = Math.max(0, time);
+    createClipOnTrack(asset, trackId, start, setClips);
+  }, [assets, createClipOnTrack]);
 
   const handleAddText = useCallback(() => {
     const overlay: TextOverlay = {
@@ -1322,6 +1338,7 @@ export default function App() {
         onSeek={seek}
         onPatchClip={patchClip}
         onPatchText={patchText}
+        onDropAsset={handleDropAsset}
       />
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
