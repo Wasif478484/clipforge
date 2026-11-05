@@ -244,37 +244,127 @@ export default function App() {
       ctx.filter = 'none';
     };
 
+    const drawRaw = (clip: Clip, el: HTMLVideoElement | HTMLImageElement, dx: number) => {
+      if (el instanceof HTMLImageElement) {
+        if (el.complete && el.naturalWidth) drawFitted(el, clip.fit, clip.filter, dx);
+      } else if (el instanceof HTMLVideoElement) {
+        if (el.readyState >= 2) drawFitted(el, clip.fit, clip.filter, dx);
+      }
+    };
+
     for (const trackId of ['v1', 'v2']) {
-      const active = clipList.filter((c) => c.trackId === trackId && t >= c.start && t < c.start + c.duration);
+      const active = clipList
+        .filter((c) => c.trackId === trackId && t >= c.start && t < c.start + c.duration)
+        .sort((a, b) => a.start - b.start);
+      const drawn = new Set<string>();
       for (const clip of active) {
+        if (drawn.has(clip.id)) continue;
         const asset = assetList.find((a) => a.id === clip.assetId);
         if (!asset) continue;
         const el = mediaEls.current.get(clip.assetId);
-        if (!el) continue;
+        if (!el || el instanceof HTMLAudioElement) continue;
+        const pic = el as HTMLVideoElement | HTMLImageElement;
 
-        let alpha = 1;
+        const elapsed = t - clip.start;
         // Visual fade durations from the clip fields; 0 keeps the legacy 0.35s auto fade.
         const inDur = clip.fadeIn > 0 ? clip.fadeIn : 0.35;
         const outDur = clip.fadeOut > 0 ? clip.fadeOut : 0.35;
-        if (clip.transitionIn === 'fade' || clip.transitionIn === 'crossfade' || clip.transitionIn === 'slide') {
-          if (t - clip.start < inDur) alpha *= Math.max(0, (t - clip.start) / inDur);
+
+        // Crossfade: during the overlap window, dissolve the outgoing clip
+        // (same track, started earlier, still covering t) out while the
+        // incoming clip dissolves in.
+        if ((clip.transitionIn === 'crossfade' || clip.transitionIn === 'dissolve') && elapsed < inDur) {
+          const p = Math.max(0, elapsed / inDur);
+          const outgoing = active.find(
+            (c) => c.id !== clip.id && !drawn.has(c.id) && c.start < clip.start && c.start + c.duration > t,
+          );
+          if (outgoing) {
+            const oAsset = assetList.find((a) => a.id === outgoing.assetId);
+            const oEl = oAsset ? (mediaEls.current.get(outgoing.assetId) as HTMLVideoElement | HTMLImageElement | undefined) : undefined;
+            if (oEl) {
+              drawn.add(outgoing.id);
+              ctx.save();
+              ctx.globalAlpha = Math.max(0, 1 - p);
+              drawRaw(outgoing, oEl, 0);
+              ctx.restore();
+            }
+          }
+          drawn.add(clip.id);
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, Math.min(1, p));
+          drawRaw(clip, pic, 0);
+          ctx.restore();
+          continue;
+        }
+
+        let alpha = 1;
+        if (clip.transitionIn === 'fade' || clip.transitionIn === 'slide' || clip.transitionIn === 'wipe-left' || clip.transitionIn === 'push-up' || clip.transitionIn === 'zoom-in') {
+          if (elapsed < inDur) alpha *= Math.max(0, elapsed / inDur);
         }
         if (clip.transitionOut === 'fade') {
           if (clip.start + clip.duration - t < outDur) alpha *= Math.max(0, (clip.start + clip.duration - t) / outDur);
         }
         let dx = 0;
-        if (clip.transitionIn === 'slide' && t - clip.start < inDur) {
-          const p = Math.max(0, (t - clip.start) / inDur);
-          dx = (1 - p) * (W * 0.12);
+        let transform: { type: 'wipe' | 'push' | 'zoom'; p: number } | null = null;
+        if (clip.transitionIn !== 'none' && elapsed < inDur) {
+          const p = Math.max(0, elapsed / inDur);
+          if (clip.transitionIn === 'slide') {
+            dx = (1 - p) * (W * 0.12);
+          } else if (clip.transitionIn === 'wipe-left') {
+            transform = { type: 'wipe', p };
+          } else if (clip.transitionIn === 'push-up') {
+            transform = { type: 'push', p };
+          } else if (clip.transitionIn === 'zoom-in') {
+            transform = { type: 'zoom', p };
+          }
         }
 
+        drawn.add(clip.id);
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-        if (el instanceof HTMLImageElement) {
-          if (el.complete && el.naturalWidth) drawFitted(el, clip.fit, clip.filter, dx);
-        } else if (el instanceof HTMLVideoElement) {
-          if (el.readyState >= 2) drawFitted(el, clip.fit, clip.filter, dx);
+        if (transform) {
+          if (transform.type === 'wipe') {
+            // wipe-left: reveal from the right edge leftwards while sliding slightly
+            const halfW = (W / 2) * transform.p;
+            ctx.beginPath();
+            ctx.rect(W / 2 - halfW, 0, halfW * 2, H);
+            ctx.clip();
+            dx = (1 - transform.p) * (W * 0.08);
+          } else if (transform.type === 'push') {
+            // push-up: incoming slides from the bottom, outgoing pushed up off-frame
+            const outgoing = active.find(
+              (c) => c.id !== clip.id && !drawn.has(c.id) && c.start < clip.start && c.start + c.duration > t,
+            );
+            if (outgoing) {
+              const oAsset = assetList.find((a) => a.id === outgoing.assetId);
+              const oEl = oAsset ? (mediaEls.current.get(outgoing.assetId) as HTMLVideoElement | HTMLImageElement | undefined) : undefined;
+              if (oEl) {
+                drawn.add(outgoing.id);
+                const off = (1 - transform.p) * H * 0.25;
+                ctx.save();
+                ctx.globalAlpha = 1;
+                ctx.translate(0, -off);
+                drawRaw(outgoing, oEl, 0);
+                ctx.restore();
+              }
+            }
+            ctx.save();
+            ctx.globalAlpha = Math.min(1, alpha + transform.p); // stay opaque while moving
+            ctx.globalAlpha = 1;
+            const rise = (1 - transform.p) * H * 0.6;
+            ctx.translate(0, rise);
+            drawRaw(clip, pic, 0);
+            ctx.restore();
+            continue;
+          } else if (transform.type === 'zoom') {
+            // zoom-in: scale 1.25 → 1 while fading in
+            const s = 1 + (1 - transform.p) * 0.25;
+            ctx.translate(W / 2, H / 2);
+            ctx.scale(s, s);
+            ctx.translate(-W / 2, -H / 2);
+          }
         }
+        drawRaw(clip, pic, dx);
         ctx.restore();
       }
     }

@@ -50,7 +50,7 @@ export interface Clip {
   fit: 'cover' | 'contain';
   filter: ClipFilter;
   speed: number; // 1.0 = normal
-  transitionIn: 'none' | 'fade' | 'crossfade' | 'slide';
+  transitionIn: 'none' | 'fade' | 'crossfade' | 'slide' | 'wipe-left' | 'push-up' | 'dissolve' | 'zoom-in';
   transitionOut: 'none' | 'fade';
   fadeIn: number;   // seconds
   fadeOut: number;  // seconds
