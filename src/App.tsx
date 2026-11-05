@@ -8,6 +8,7 @@ import ImageEditor from './components/ImageEditor';
 import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
+import { loadSettings } from './lib/settings';
 import { createMediaElement, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
@@ -20,7 +21,7 @@ export default function App() {
   const [clips, setClips] = useState<Clip[]>([]);
   const [texts, setTexts] = useState<TextOverlay[]>([]);
   const [projectName, setProjectName] = useState('Untitled project');
-  const [aspect, setAspect] = useState<Aspect>('16:9');
+  const [aspect, setAspect] = useState<Aspect>(() => loadSettings().defaultAspect);
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [selection, setSelection] = useState<Selection>(null);
@@ -604,7 +605,7 @@ export default function App() {
     setSelection(null);
     setWaveforms({});
     setProjectName('Untitled project');
-    setAspect('16:9');
+    setAspect(loadSettings().defaultAspect);
     setCurrentTime(0);
     currentTimeRef.current = 0;
     setExportProgress(null);
@@ -892,7 +893,7 @@ export default function App() {
           const tctx = thumb.getContext('2d');
           if (tctx) {
             tctx.drawImage(canvas, 0, 0, thumb.width, thumb.height);
-            thumbnail = thumb.toDataURL('image/jpeg', 0.6);
+            thumbnail = thumb.toDataURL('image/jpeg', loadSettings().thumbnailQuality);
           }
         }
       } catch { /* no thumbnail */ }
@@ -1226,7 +1227,7 @@ export default function App() {
         exportProgress={exportProgress}
         mp4Busy={mp4Busy}
         canExport={duration > 0}
-        defaultExportFormat={(() => { try { return JSON.parse(localStorage.getItem('clipforge-settings-v1') || '{}').defaultExportFormat || 'webm'; } catch { return 'webm'; } })()}
+        defaultExportFormat={loadSettings().defaultExportFormat}
       />
       <main className="workspace">
         <MediaPanel
@@ -1253,6 +1254,7 @@ export default function App() {
           clip={selectedClip}
           text={selectedText}
           canSplit={canSplit}
+          showHints={loadSettings().showInterfaceHints}
           onChangeClip={patchClip}
           onSpeedChange={handleSpeedChange}
           onChangeText={patchText}

@@ -7,6 +7,7 @@ interface Props {
   clip: Clip | null;
   text: TextOverlay | null;
   canSplit: boolean;
+  showHints: boolean;
   onChangeClip: (id: string, patch: Partial<Clip>) => void;
   onSpeedChange: (clipId: string, speed: number) => void;
   onChangeText: (id: string, patch: Partial<TextOverlay>) => void;
@@ -24,6 +25,7 @@ export default function Inspector({
   clip,
   text,
   canSplit,
+  showHints,
   onChangeClip,
   onSpeedChange,
   onChangeText,
@@ -40,12 +42,14 @@ export default function Inspector({
             <div className="empty-tile"><InfoIcon size={24} strokeWidth={1.6} /></div>
             <p><b>Nothing selected</b></p>
             <p>Click a clip on the timeline to edit its trim, volume and fit — or use the shortcuts below.</p>
-            <p className="shortcut-list">
-              <span><span className="kbd">Space</span> play / pause</span>
-              <span><span className="kbd">Delete</span> remove selected</span>
-              <span><span className="kbd">Ctrl</span>+<span className="kbd">B</span> split clip at playhead</span>
-              <span><span className="kbd">←</span><span className="kbd">→</span> nudge playhead (ruler focused)</span>
-            </p>
+            {showHints && (
+              <p className="shortcut-list">
+                <span><span className="kbd">Space</span> play / pause</span>
+                <span><span className="kbd">Delete</span> remove selected</span>
+                <span><span className="kbd">Ctrl</span>+<span className="kbd">B</span> split clip at playhead</span>
+                <span><span className="kbd">←</span><span className="kbd">→</span> nudge playhead (ruler focused)</span>
+              </p>
+            )}
             <p className="muted-note">Drag clip bodies to move them, drag the edge handles to trim. The red line is the playhead — click the ruler to scrub.</p>
           </div>
         )}
