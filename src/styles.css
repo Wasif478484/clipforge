@@ -52,7 +52,6 @@ html, body, #root {
   margin: 0;
   background: var(--canvas);
   color: var(--ink);
-  overflow: hidden;
   font-family: Inter, -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }

@@ -6,6 +6,7 @@ import Inspector from './components/Inspector';
 import Timeline from './components/Timeline';
 import ImageEditor from './components/ImageEditor';
 import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
+import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
 import { createMediaElement, generateSampleImage, generateSampleVideo, probeAsset } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
@@ -30,7 +31,7 @@ export default function App() {
   const [mp4Busy, setMp4Busy] = useState(false);
   const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
 
-  const [mode, setMode] = useState<'home' | 'video' | 'image'>('home');
+  const [mode, setMode] = useState<'home' | 'video' | 'image' | 'dashboard'>('home');
   const [imageSource, setImageSource] = useState<string | null>(null);
   const [imageName, setImageName] = useState<string>('image');
 
@@ -971,6 +972,15 @@ export default function App() {
 
   if (mode === 'home') {
     return (
+      <LandingPage
+        onLaunchEditor={() => setMode('video')}
+        onOpenProjects={() => setMode('dashboard')}
+      />
+    );
+  }
+
+  if (mode === 'dashboard') {
+    return (
       <Dashboard
         onNewVideo={handleOpenVideo}
         onNewImage={handleOpenImage}
@@ -987,7 +997,7 @@ export default function App() {
       <ImageEditor
         initialImage={imageSource}
         initialName={imageName}
-        onClose={() => setMode('home')}
+        onClose={() => setMode('dashboard')}
         onExportRecent={saveImageToRecent}
       />
     );

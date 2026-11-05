@@ -1,30 +1,27 @@
 import { useEffect, useRef } from 'react';
-import { createHeroScene } from './scene';
+import { createHeroScene, type HeroSceneHandle } from './scene';
 
-export default function HeroScene() {
-  const containerRef = useRef<HTMLDivElement>(null);
+export default function HeroScene({ paused = false }: { paused?: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const handleRef = useRef<HeroSceneHandle | null>(null);
 
   useEffect(() => {
-    const el = containerRef.current;
+    const el = canvasRef.current;
     if (!el) return undefined;
     const handle = createHeroScene(el);
+    handleRef.current = handle;
     return () => {
+      handleRef.current = null;
       handle?.dispose();
     };
   }, []);
 
-  return (
-    <div
-      ref={containerRef}
-      aria-hidden="true"
-      style={{
-        position: 'absolute',
-        inset: 0,
-        zIndex: 0,
-        overflow: 'hidden',
-        background: 'transparent',
-        pointerEvents: 'none',
-      }}
-    />
-  );
+  useEffect(() => {
+    const handle = handleRef.current;
+    if (!handle) return;
+    if (paused) handle.pause();
+    else handle.resume();
+  }, [paused]);
+
+  return <canvas ref={canvasRef} className="layer" aria-hidden="true" />;
 }

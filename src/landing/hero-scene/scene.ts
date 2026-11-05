@@ -29,6 +29,8 @@ export const CAMERA_Z = 6;
 export const MAX_DPR = 2;
 
 export interface HeroSceneHandle {
+  pause: () => void;
+  resume: () => void;
   dispose: () => void;
 }
 
@@ -40,13 +42,16 @@ interface ParticleSeed {
 }
 
 /**
- * Build the particle waveform scene inside `container`.
+ * Build the particle waveform scene onto `canvas`.
  * Returns null when WebGL is unavailable — caller keeps the static background.
  */
-export function createHeroScene(container: HTMLElement): HeroSceneHandle | null {
+export function createHeroScene(canvas: HTMLCanvasElement): HeroSceneHandle | null {
+  const host = (canvas.parentElement as HTMLElement | null) ?? canvas;
+
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({
+      canvas,
       antialias: true,
       alpha: true,
       powerPreference: 'high-performance',
@@ -55,15 +60,11 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
     return null; // WebGL unavailable — keep static background
   }
 
-  const width = Math.max(1, container.clientWidth);
-  const height = Math.max(1, container.clientHeight);
+  const width = Math.max(1, host.clientWidth);
+  const height = Math.max(1, host.clientHeight);
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
   renderer.setSize(width, height, false);
-  renderer.domElement.style.width = '100%';
-  renderer.domElement.style.height = '100%';
-  renderer.domElement.style.display = 'block';
-  container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(CAMERA_FOV, width / height, 0.1, 100);
@@ -71,7 +72,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
   camera.lookAt(0, 0, 0);
 
   const isMobile =
-    container.clientWidth < MOBILE_BREAKPOINT_PX ||
+    host.clientWidth < MOBILE_BREAKPOINT_PX ||
     window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT_PX - 1}px)`).matches;
   const count = isMobile ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP;
 
@@ -109,6 +110,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
   const pointerTarget = { x: 0, y: 0 };
   let animationFrame: number | null = null;
   let isRunning = false;
+  let userPaused = false;
   let isIntersecting = true;
   const clockStart = performance.now();
 
@@ -142,7 +144,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
   };
 
   const start = () => {
-    if (prefersReducedMotion || isRunning) return;
+    if (prefersReducedMotion || isRunning || userPaused) return;
     if (document.hidden || !isIntersecting) return;
     isRunning = true;
     animationFrame = window.requestAnimationFrame(tick);
@@ -156,6 +158,16 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
     }
   };
 
+  const pause = () => {
+    userPaused = true;
+    stop();
+  };
+
+  const resume = () => {
+    userPaused = false;
+    start();
+  };
+
   // Pause when the hero scrolls off-screen
   const intersectionObserver = new IntersectionObserver(
     (entries) => {
@@ -165,7 +177,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
     },
     { threshold: 0 },
   );
-  intersectionObserver.observe(container);
+  intersectionObserver.observe(host);
 
   // Pause when the tab is hidden
   const onVisibilityChange = () => {
@@ -176,7 +188,7 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
 
   // Pointer parallax — tracked on window so the canvas can be pointer-events:none
   const onPointerMove = (event: PointerEvent) => {
-    const rect = container.getBoundingClientRect();
+    const rect = host.getBoundingClientRect();
     const insideX = event.clientX >= rect.left && event.clientX <= rect.right;
     const insideY = event.clientY >= rect.top && event.clientY <= rect.bottom;
     if (!insideX || !insideY) {
@@ -191,17 +203,17 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
   };
   window.addEventListener('pointermove', onPointerMove, { passive: true });
 
-  // Resize with the container, not only the window
+  // Resize with the hero, not only the window
   const resizeObserver = new ResizeObserver(() => {
-    const w = Math.max(1, container.clientWidth);
-    const h = Math.max(1, container.clientHeight);
+    const w = Math.max(1, host.clientWidth);
+    const h = Math.max(1, host.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_DPR));
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     if (prefersReducedMotion) renderFrame(0);
   });
-  resizeObserver.observe(container);
+  resizeObserver.observe(host);
 
   if (prefersReducedMotion) {
     // One static frame, no animation loop
@@ -211,6 +223,8 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
   }
 
   return {
+    pause,
+    resume,
     dispose: () => {
       stop();
       intersectionObserver.disconnect();
@@ -222,9 +236,6 @@ export function createHeroScene(container: HTMLElement): HeroSceneHandle | null 
       material.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
-      if (renderer.domElement.parentNode === container) {
-        container.removeChild(renderer.domElement);
-      }
     },
   };
 }
