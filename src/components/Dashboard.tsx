@@ -23,6 +23,7 @@ import {
   PencilIcon,
   WandIcon,
 } from '../icons';
+import { Studio3DHero } from './Studio3D';
 
 export interface VideoTemplate {
   id: string;
@@ -188,29 +189,7 @@ export default function Dashboard({
               </p>
             </div>
             <div className="studio-hero-media" aria-hidden="true">
-              <div className="studio-frame">
-                <div className="studio-frame-top">
-                  <span className="studio-dot" /><span className="studio-dot" /><span className="studio-dot" />
-                  <span className="studio-frame-title">TIMELINE — Untitled project</span>
-                </div>
-                <div className="studio-scrubber">
-                  <div className="studio-scrubber-fill" />
-                  <div className="studio-scrubber-knob" />
-                </div>
-                <div className="studio-frame-grid">
-                  {['V2', 'V1', 'A1', 'T1'].map((t, i) => (
-                    <div key={t} className={`studio-track studio-track-${i}`}>
-                      <span className="studio-track-id">{t}</span>
-                      <span className="studio-clip studio-clip-a" style={{ left: `${12 + i * 9}%`, width: '42%' }} />
-                      {i < 3 && <span className="studio-clip studio-clip-b" style={{ left: '58%', width: '26%' }} />}
-                    </div>
-                  ))}
-                </div>
-                <div className="studio-frame-footer">
-                  <span>00:18 / 00:42</span>
-                  <span className="studio-frame-badge">4K · H.264</span>
-                </div>
-              </div>
+              <Studio3DHero />
             </div>
           </div>
 

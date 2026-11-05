@@ -438,6 +438,7 @@ button:disabled { cursor: default; }
 .studio-title em { font-style: italic; background: linear-gradient(120deg, var(--accent), var(--gold)); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .studio-sub { margin: 10px 0 0; font-size: 15px; color: var(--ink-muted); line-height: 1.55; max-width: 620px; }
 .studio-hero-media { display: none; }
+.studio-3d-hero { width: 420px; height: 320px; border-radius: var(--r-lg); overflow: hidden; border: 1px solid var(--hairline); background: var(--canvas); }
 @media (min-width: 1200px) { .studio-hero-media { display: block; } }
 .studio-frame { width: 420px; border: 1px solid rgba(239,233,220,0.1); border-radius: 18px; overflow: hidden; background: var(--surface-1); box-shadow: 0 32px 80px rgba(0,0,0,0.55); }
 .studio-frame-top { display: flex; align-items: center; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--hairline); font-family: ui-monospace, Menlo, monospace; font-size: 10px; color: var(--ink-subtle); letter-spacing: 0.08em; }
