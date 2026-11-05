@@ -1,0 +1,53 @@
+name: release
+
+# Tag-driven desktop release. Push a tag like v0.2.0 to build Windows, macOS
+# (universal) and Linux (AppImage) installers and attach them to a GitHub
+# Release for that tag.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            build: npx electron-builder --win --x64 --publish never
+            assets: |
+              release/ClipForge-*-Setup-x64.exe
+              release/ClipForge-*-Portable-x64.exe
+          - os: macos-latest
+            build: npx electron-builder --mac --publish never
+            assets: |
+              release/ClipForge-*-macOS-*.dmg
+              release/ClipForge-*-macOS-*.zip
+          - os: ubuntu-latest
+            build: npx electron-builder --linux --publish never
+            assets: |
+              release/ClipForge-*-Linux-x64.AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Build desktop packages
+        run: ${{ matrix.build }}
+
+      - name: Upload assets to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.assets }}
+          body_path: docs/release-notes-${{ github.ref_name }}.md
+          generate_release_notes: true
