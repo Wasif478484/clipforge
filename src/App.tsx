@@ -306,12 +306,26 @@ export default function App() {
       } else if (anim === 'slide-up') {
         if (progress < 0.2) { const p = progress / 0.2; alpha = p; y += (1 - p) * 40; }
         if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      } else if (anim === 'slide-left') {
+        if (progress < 0.2) { const p = progress / 0.2; alpha = p; x += (1 - p) * 60; }
+        if (progress > 0.85) alpha = (1 - progress) / 0.15;
       } else if (anim === 'pop') {
         if (progress < 0.15) { const p = progress / 0.15; alpha = p; }
         if (progress > 0.85) alpha = (1 - progress) / 0.15;
       } else if (anim === 'bounce') {
         if (progress < 0.25) { const p = progress / 0.25; alpha = Math.min(1, p * 2); y -= Math.sin(p * Math.PI) * 30; }
         if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      } else if (anim === 'scale-in') {
+        if (progress < 0.2) { const p = progress / 0.2; alpha = p; }
+        if (progress > 0.85) alpha = (1 - progress) / 0.15;
+      } else if (anim === 'glitch') {
+        if (progress < 0.1) alpha = progress / 0.1;
+        if (progress > 0.9) alpha = (1 - progress) / 0.1;
+        x += (Math.random() - 0.5) * (progress < 0.3 ? 4 : 0);
+      } else if (anim === 'neon-flicker') {
+        if (progress < 0.3) alpha = Math.random() > 0.3 ? 1 : 0.3;
+        else alpha = 1;
+        if (progress > 0.9) alpha = (1 - progress) / 0.1;
       }
       ctx.save();
       ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
@@ -326,6 +340,10 @@ export default function App() {
       if (anim === 'typewriter') {
         const chars = Math.floor(progress * overlay.text.length);
         displayText = overlay.text.slice(0, chars);
+      } else if (anim === 'word-reveal') {
+        const words = overlay.text.split(' ');
+        const visibleWords = Math.floor(progress * words.length);
+        displayText = words.slice(0, visibleWords).join(' ');
       }
       const displayLines = displayText.split('\n');
       displayLines.forEach((line: string, i: number) => {

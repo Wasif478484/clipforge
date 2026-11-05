@@ -69,7 +69,7 @@ export interface TextOverlay {
   color: string;
   start: number;
   duration: number;
-  animation: 'none' | 'fade' | 'slide-up' | 'typewriter' | 'pop' | 'bounce';
+  animation: 'none' | 'fade' | 'slide-up' | 'slide-left' | 'typewriter' | 'pop' | 'bounce' | 'scale-in' | 'glitch' | 'word-reveal' | 'neon-flicker';
 }
 
 export type Selection = { type: 'clip' | 'text'; id: string } | null;

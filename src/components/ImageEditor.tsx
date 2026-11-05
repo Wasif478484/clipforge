@@ -36,7 +36,7 @@ const PRESETS: { name: string; adj: Partial<Adjustments>; filter: string }[] = [
   { name: 'Soft', adj: { contrast: 0.9, brightness: 1.05, saturation: 0.9 }, filter: 'none' },
 ];
 
-type Tool = 'select' | 'crop' | 'brush' | 'eraser' | 'text' | 'rect' | 'circle' | 'line' | 'arrow';
+type Tool = 'select' | 'crop' | 'brush' | 'eraser' | 'text' | 'rect' | 'circle' | 'line' | 'arrow' | 'clone';
 
 interface Props {
   initialImage: string; // object URL or data URL
@@ -58,6 +58,7 @@ function ToolIcon({ tool }: { tool: Tool }) {
     case 'circle': return <svg {...props}><circle cx='12' cy='12' r='9'/></svg>;
     case 'line': return <svg {...props}><path d='M5 19L19 5'/></svg>;
     case 'arrow': return <svg {...props}><path d='M5 12h14'/><path d='M12 5l7 7-7 7'/></svg>;
+    case 'clone': return <svg {...props}><path d='M9 9h6v6H9z'/><path d='M3 3h4v4H3z'/><path d='M7 5h2'/></svg>;
     default: return null;
   }
 }
@@ -85,6 +86,8 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
   const [cropRect, setCropRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [lastPt, setLastPt] = useState<{ x: number; y: number } | null>(null);
+  const [cloneSource, setCloneSource] = useState<{ x: number; y: number } | null>(null);
+  const cloneOffset = useRef<{ x: number; y: number } | null>(null);
   const [shapeStart, setShapeStart] = useState<{ x: number; y: number } | null>(null);
   const [bgRemoving, setBgRemoving] = useState(false);
   const [exportFmt, setExportFmt] = useState<'png' | 'jpeg' | 'webp'>('png');
@@ -248,6 +251,40 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
       setDrawing(true);
       return;
     }
+    if (tool === 'clone') {
+      if (!cloneSource) {
+        setCloneSource(pt);
+        return;
+      }
+      cloneOffset.current = { x: pt.x - cloneSource.x, y: pt.y - cloneSource.y };
+      const layer = layers.find((l) => l.kind === 'draw' && l.id === activeLayer)
+        ?? layers.filter((l) => l.kind === 'draw').pop();
+      let target = layer;
+      if (!target) {
+        const newLayer: Layer = { id: uid(), name: `Clone ${layers.length + 1}`, visible: true, opacity: 1, blendMode: 'source-over', canvas: document.createElement('canvas'), kind: 'draw' };
+        newLayer.canvas.width = canvasSize.w; newLayer.canvas.height = canvasSize.h;
+        setLayers((ls) => [...ls, newLayer]);
+        setActiveLayer(newLayer.id);
+        target = newLayer;
+      }
+      const baseLayer = layers.find((l) => l.kind === 'base');
+      if (!baseLayer) return;
+      const ctx = target.canvas.getContext('2d')!;
+      const r = brushSize / 2;
+      const off = cloneOffset.current ?? { x: 0, y: 0 };
+      const srcX = pt.x - off.x;
+      const srcY = pt.y - off.y;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(baseLayer.canvas, srcX - r, srcY - r, r * 2, r * 2, pt.x - r, pt.y - r, r * 2, r * 2);
+      ctx.restore();
+      setLayers((ls) => [...ls]);
+      setLastPt(pt);
+      setDrawing(true);
+      return;
+    }
     if (tool === 'text') {
       const layer = document.createElement('canvas');
       layer.width = canvasSize.w; layer.height = canvasSize.h;
@@ -274,6 +311,24 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
     const pt = getCanvasPoint(e);
     if (tool === 'crop' && cropRect) {
       setCropRect({ x: cropRect.x, y: cropRect.y, w: pt.x - cropRect.x, h: pt.y - cropRect.y });
+      return;
+    }
+    if (tool === 'clone' && drawing && cloneOffset.current) {
+      const target = layers.find((l) => l.kind === 'draw' && l.id === activeLayer) ?? layers.filter((l) => l.kind === 'draw').pop();
+      const baseLayer = layers.find((l) => l.kind === 'base');
+      if (!target || !baseLayer || !lastPt) return;
+      const ctx = target.canvas.getContext('2d')!;
+      const r = brushSize / 2;
+      const srcX = pt.x - cloneOffset.current.x;
+      const srcY = pt.y - cloneOffset.current.y;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(baseLayer.canvas, srcX - r, srcY - r, r * 2, r * 2, pt.x - r, pt.y - r, r * 2, r * 2);
+      ctx.restore();
+      setLastPt(pt);
+      setLayers((ls) => [...ls]);
       return;
     }
     if (tool === 'brush' || tool === 'eraser') {
@@ -309,6 +364,12 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
         if (r.w > 5 && r.h > 5) setCropRect(r);
         else setCropRect(null);
       }
+      return;
+    }
+    if (tool === 'clone') {
+      setLastPt(null);
+      cloneOffset.current = null;
+      pushHistory();
       return;
     }
     if (tool === 'brush' || tool === 'eraser') {
@@ -593,7 +654,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
         <button className="btn ghost small" onClick={onClose}>← Back</button>
         <div className="img-title">{sourceName} · {canvasSize.w}×{canvasSize.h}</div>
         <div className="img-tools">
-          {(['select', 'crop', 'brush', 'eraser', 'text', 'rect', 'circle', 'line', 'arrow'] as Tool[]).map((t) => (
+          {(['select', 'crop', 'brush', 'eraser', 'clone', 'text', 'rect', 'circle', 'line', 'arrow'] as Tool[]).map((t) => (
             <button key={t} className={`icon-btn ${tool === t ? 'active' : ''}`} onClick={() => setTool(t)} title={t}>
               <ToolIcon tool={t} />
             </button>
@@ -711,6 +772,17 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
           </div>
 
           {/* Brush / text / shape settings */}
+          {tool === 'clone' && (
+            <div className="panel-section">
+              <h3 className="panel-title">Clone stamp</h3>
+              <p style={{ fontSize: 11, color: 'var(--ink-subtle)', margin: '0 0 8px' }}>
+                {cloneSource ? `Source set at (${Math.round(cloneSource.x)}, ${Math.round(cloneSource.y)}). Click/drag to stamp.` : 'Click on the image to set the source point.'}
+              </p>
+              <button className="btn ghost small" onClick={() => setCloneSource(null)} disabled={!cloneSource}>
+                Reset source
+              </button>
+            </div>
+          )}  {/* end clone */}
           {(tool === 'brush' || tool === 'eraser') && (
             <div className="panel-section">
               <h3 className="panel-title">Brush</h3>

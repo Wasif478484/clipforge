@@ -217,9 +217,14 @@ export default function Inspector({
                 <option value="none">None</option>
                 <option value="fade">Fade in/out</option>
                 <option value="slide-up">Slide up</option>
+                <option value="slide-left">Slide left</option>
                 <option value="typewriter">Typewriter</option>
                 <option value="pop">Pop</option>
                 <option value="bounce">Bounce</option>
+                <option value="scale-in">Scale in</option>
+                <option value="glitch">Glitch</option>
+                <option value="neon-flicker">Neon flicker</option>
+                <option value="word-reveal">Word reveal</option>
               </select>
             </div>
             <div className="field">
