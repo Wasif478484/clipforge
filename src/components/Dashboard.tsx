@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import {
   clearRecentProjects,
   deleteRecentProject,
@@ -24,6 +24,8 @@ import {
   WandIcon,
   Logo,
 } from '../icons';
+
+const HeroScene = lazy(() => import('../landing/hero-scene/HeroScene'));
 
 export interface VideoTemplate {
   id: string;
@@ -161,8 +163,13 @@ export default function Dashboard({
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main className="studio-main">
         {/* Header row */}
-        <header className="studio-header">
-          <div className="studio-hero-row">
+        <header className="studio-header" style={{ position: 'relative', overflow: 'hidden' }}>
+          <Suspense
+            fallback={<div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'var(--canvas)' }} />}
+          >
+            <HeroScene />
+          </Suspense>
+          <div className="studio-hero-row" style={{ position: 'relative', zIndex: 1 }}>
             <div className="studio-hero-copy">
               <h1 className="studio-title">
                 Projects
@@ -174,7 +181,7 @@ export default function Dashboard({
 
           </div>
 
-          <div className="studio-commands">
+          <div className="studio-commands" style={{ position: 'relative', zIndex: 1 }}>
             <label className="studio-search">
               <FilmIcon size={14} strokeWidth={1.8} />
               <input
