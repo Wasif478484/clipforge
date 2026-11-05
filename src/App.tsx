@@ -445,6 +445,41 @@ export default function App() {
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
+  /* ------------------------------------------------ project reset ------------------------------------------------ */
+
+  /**
+   * Tear down all media + audio graph state and clear project state.
+   * Used by openRecent and "New project" — createMediaElementSource can only
+   * run once per element, so reopening a project must rebuild from scratch.
+   */
+  const resetProject = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    playingRef.current = false;
+    setPlaying(false);
+    const rec = exportRecorderRef.current;
+    if (rec && rec.state !== 'inactive') { try { rec.stop(); } catch { /* already stopped */ } }
+    exportRecorderRef.current = null;
+    exportDestRef.current = null;
+    // detach every gain + element source so the graph rebuilds cleanly
+    for (const [, gain] of gainByClip.current) { try { gain.disconnect(); } catch { /* noop */ } }
+    gainByClip.current.clear();
+    for (const [, source] of sourceByAsset.current) { try { source.disconnect(); } catch { /* noop */ } }
+    sourceByAsset.current.clear();
+    mediaEls.current.clear();
+    for (const a of stateRef.current.assets) URL.revokeObjectURL(a.url);
+    historyRef.current = { past: [], present: '', future: [] };
+    setAssets([]);
+    setClips([]);
+    setTexts([]);
+    setSelection(null);
+    setWaveforms({});
+    setProjectName('Untitled project');
+    setAspect('16:9');
+    setCurrentTime(0);
+    currentTimeRef.current = 0;
+    setExportProgress(null);
+  }, []);
+
   /* ------------------------------------------------ project ops ------------------------------------------------ */
 
   const addAssets = useCallback((items: MediaAsset[]) => {
@@ -452,7 +487,10 @@ export default function App() {
     setAssets((prev) => [...prev, ...items]);
   }, []);
 
-  const handleOpenVideo = useCallback(() => setMode('video'), []);
+  const handleOpenVideo = useCallback(() => {
+    resetProject();
+    setMode('video');
+  }, [resetProject]);
   const handleOpenImage = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -716,8 +754,11 @@ export default function App() {
     if (entry.kind === 'video' && entry.videoJson) {
       try {
         const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+        resetProject();
         setProjectName(parsed.name);
         setAspect(parsed.aspect);
+        // historyRef was cleared by resetProject; re-seed with the loaded project
+        historyRef.current = { past: [], present: JSON.stringify({ projectName: parsed.name, aspect: parsed.aspect, clips: parsed.clips, texts: parsed.texts }), future: [] };
         setSelection(null);
         setCurrentTime(0);
         const hydratedAssets: MediaAsset[] = [];
