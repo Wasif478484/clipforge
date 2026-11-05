@@ -5,19 +5,28 @@
 
 **Project:** ClipForge — open-source browser video editor
 **Stack:** React 19 · TypeScript · Vite · Canvas 2D · Web Audio · MediaRecorder
-**Established with:** ui-ux-pro-max (`--design-system`) + awesome-design-md (Linear/Vercel/Raycast references — token inspiration only, never copied assets)
-**Updated:** 2026-11-03
+**Established with:** ui-ux-pro-max (`--design-system`) + awesome-design-md (Linear/Vercel/Raycast; 2026-11-05: Supabase dark track — token inspiration only, MIT, never copied assets)
+**Updated:** 2026-11-05
 
 ---
 
 ## 1. Direction
 
-Dark, cinematic, precision tool — the editor is the star, chrome is a quiet frame.
+Dark, technical, precision tool — the editor is the star, chrome is a quiet frame.
 Reference class: Linear / Vercel / Raycast (dark dev-tool precision) with a single
-"video" accent. OLED-friendly near-black canvas, hairline borders, surface
-ladder (no shadows for hierarchy), scarce saturated color.
+"video" emerald accent. Deep-charcoal canvas, hairline borders, surface ladder (no
+shadows for hierarchy), scarce saturated color.
+
+**Monochrome first.** One chromatic event only — the emerald accent — used for the
+filled CTA, active/selected states, focus ring and logo. Everything else is a
+calibrated grey ladder from `--surface-1` to `--ink`.
 
 **Anti-goals:** pure white anything, neon everywhere, emoji icons, shadow-heavy cards, decorative gradients, marketing hero inside the app.
+
+> Supabase's design language is the token inspiration for the 2026-11 palette
+> (deep charcoal `#1c1c1c` / `#202020`, emerald `#3ecf8e`). Token values only —
+> no Supabase marks, wordmarks, screenshots or trade dress. ClipForge is not
+> affiliated with Supabase.
 
 ## 2. Color tokens
 
@@ -25,26 +34,27 @@ ladder (no shadows for hierarchy), scarce saturated color.
 
 | Token | Hex | Notes |
 |---|---|---|
-| `--canvas` | `#0a0b0e` | app background (own value, not Linear's #010102) |
-| `--surface-1` | `#101216` | panels (media/inspector/timeline) |
-| `--surface-2` | `#15181d` | cards, inputs, raised rows |
-| `--surface-3` | `#1b1f26` | hovered/selected rows, chips |
-| `--surface-4` | `#22262e` | deepest lift, toolbars |
-| `--hairline` | `rgba(255,255,255,.07)` | 1px borders |
-| `--hairline-strong` | `rgba(255,255,255,.12)` | input borders, focus |
-| `--ink` | `#f5f6f8` | primary text |
-| `--ink-muted` | `#a6adba` | secondary text |
-| `--ink-subtle` | `#7d8492` | tertiary, placeholders, disabled (≥ 4.5:1) |
-| `--accent` | `#ec4899` | primary CTA, active states, focus ring |
-| `--accent-hover` | `#f472b6` | hover |
-| `--accent-press` | `#db2777` | active/pressed |
-| `--accent-soft` | `rgba(236,72,153,.14)` | selected fills, chips |
-| `--blue` | `#3b82f6` | video clip lane (functional) |
-| `--green` | `#22c55e` | audio clip lane |
-| `--violet` | `#a855f7` | text clip lane |
-| `--amber` | `#f59e0b` | image clip lane |
+| `--canvas` | `#1c1c1c` | app background (deep charcoal) |
+| `--surface-1` | `#202020` | panels (media/inspector/timeline) |
+| `--surface-2` | `#262626` | cards, inputs, raised rows |
+| `--surface-3` | `#2e2e2e` | hovered/selected rows, chips |
+| `--surface-4` | `#383838` | deepest lift, toolbars |
+| `--hairline` | `rgba(255,255,255,.08)` | 1px borders |
+| `--hairline-strong` | `rgba(255,255,255,.16)` | input borders, focus |
+| `--ink` | `#f5f5f5` | primary text (not pure white) |
+| `--ink-muted` | `#9a9a9a` | secondary text |
+| `--ink-subtle` | `#8f8f8f` | tertiary, placeholders, disabled (≥ 4.5:1) |
+| `--accent` | `#3ecf8e` | primary CTA, active states, focus ring |
+| `--accent-hover` | `#4ade80` | hover |
+| `--accent-press` | `#24b47e` | active/pressed |
+| `--accent-soft` | `rgba(62,207,142,.14)` | selected fills, chips |
+| `--on-accent` | `#171717` | text on accent fill (near-black, never white) |
+| `--blue` | `#a7c8d8` | video clip lane (functional) |
+| `--green` | `#9fd6a6` | audio clip lane |
+| `--violet` | `#d9b1ff` | text clip lane |
+| `--amber` | `#f6cc8b` | image clip lane |
 | `--red` | `#ff5d5d` | playhead, destructive |
-| `--success` | `#27a644` | only status green |
+| `--success` | `#3ecf8e` | only status green |
 
 Contrast: body text ≥ 4.5:1; `--ink-muted` on `--surface-1` passes. Never raw hex in components — use vars.
 
@@ -66,16 +76,16 @@ Line-height 1.5 for prose, 1.2–1.3 for labels. Never < 10.5px.
 
 ## 4. Spacing & radii
 
-4 / 8 / 12 / 16 / 24 / 32 / 48. Panels pad 14px. Radius: 6 (chips) / 8–10 (controls) / 12 (panels, cards) / 999 (pills). Shadow only for overlays (`0 16px 48px rgba(0,0,0,.5)`), never for static hierarchy.
+4 / 8 / 12 / 16 / 24 / 32 / 48. Panels pad 14px. Radius: 6 (chips) / 8–10 (controls) / 12 (panels, cards) / 999 (pills). Shadow only for overlays (`0 24px 64px rgba(0,0,0,.6)`), never for static hierarchy.
 
 ## 5. Components
 
-- **Buttons** — primary: `--accent` bg, `#2b0416` text, 800 weight, 8px radius, `cursor:pointer`, hover `--accent-hover`, 150–200ms ease, `translateY(1px)` on press. Ghost: `--surface-2`, hairline border, hover border-accent + accent text. Danger: transparent + red border, soft red fill on hover.
+- **Buttons** — primary: `--accent` bg, `var(--on-accent)` near-black text, 800 weight, 8px radius, `cursor:pointer`, hover `--accent-hover`, 150–200ms ease, `translateY(1px)` on press. Ghost: `--surface-2`, hairline border, hover border-accent + accent text. Danger: transparent + red border, soft red fill on hover.
 - **Inputs** — `--surface-2`, hairline border, 8px radius; focus: accent border + 3px `--accent-soft` ring; labels above fields (never placeholder-only), 10.5px uppercase eyebrow labels.
 - **Panels** — `--surface-1` with hairline right/left border; section padding 14px; section gap via inner stacks.
 - **Focus** — every interactive element: `:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }`. Never remove outlines without replacement.
 - **Icons** — inline SVG only, stroke 1.8–2, currentColor, Lucide/Feather-style paths (`src/icons.tsx`). **No emoji anywhere in UI.**
-- **Timeline clips** — lane tint fills at ~45%/20%, 1px inner white border, 8px radius, drag = `grab/grabbing`, trim handles reveal on hover/selected, selected = 2px accent outline.
+- **Timeline clips** — lane tint fills at ~20% alpha, 1px inner white border, 8px radius, drag = `grab/grabbing`, trim handles reveal on hover/selected, selected = 2px accent outline.
 - **Motion** — 150–200ms `ease`, transform/opacity only; `prefers-reduced-motion: reduce` disables transitions/animations.
 - **Empty states** — icon in 56px `--surface-2` tile + one-line what + one primary CTA.
 
