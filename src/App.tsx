@@ -793,7 +793,7 @@ export default function App() {
       return;
     }
     showToast('That recent project is incomplete — please try saving again.');
-  }, [showToast]);
+  }, [showToast, resetProject, setSelection]);
 
   const applyTemplate = useCallback((template: typeof VIDEO_TEMPLATES[number]) => {
     const mkText = (text: string, y: number, size: number, color = 'white'): TextOverlay => ({
