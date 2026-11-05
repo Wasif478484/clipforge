@@ -84,20 +84,6 @@ export default function App() {
     }
   }, [clips, texts, projectName, aspect, snapshot]);
 
-  // Undo/redo history tracking.
-  useEffect(() => {
-    if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
-    const h = historyRef.current;
-    const snap = snapshot();
-    if (h.present && h.present !== snap) {
-      h.past = [...h.past, h.present].slice(-60);
-      h.present = snap;
-      h.future = [];
-    } else if (!h.present) {
-      h.present = snap;
-    }
-  }, [clips, texts, projectName, aspect, snapshot]);
-
   const assetKindById = useMemo(() => {
     const map: Record<string, MediaKind | undefined> = {};
     for (const a of assets) map[a.id] = a.kind;
