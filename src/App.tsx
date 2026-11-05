@@ -454,8 +454,11 @@ export default function App() {
 
       const active = t >= clip.start && t < clip.start + clip.duration;
       const target = clip.trimStart + (t - clip.start) * clip.speed;
+      // never seek past the source media (speed may have been changed mid-trim)
+      const maxTarget = Math.max(0, asset.duration - 0.05);
+      const clampedTarget = Math.min(target, maxTarget);
       if (active) {
-        if (Math.abs(el.currentTime - target) > 0.35) el.currentTime = target;
+        if (Math.abs(el.currentTime - clampedTarget) > 0.35) el.currentTime = clampedTarget;
         if (isPlaying) { if (el.paused) void el.play().catch(() => undefined); }
         else if (!el.paused) el.pause();
       } else if (!el.paused) {
@@ -679,7 +682,8 @@ export default function App() {
       trackId,
       name: asset.name,
       start,
-      duration: Math.max(0.1, length),
+      // timeline length: source seconds / speed — at 2x the clip is half as long
+      duration: Math.max(0.1, length / 1),
       trimStart: 0,
       trimEnd: Math.max(0, asset.duration - length),
       volume: 1,
@@ -725,6 +729,21 @@ export default function App() {
 
   const patchClip = useCallback((id: string, patch: Partial<Clip>) => {
     setClips((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  }, []);
+
+  /** Speed change: recompute timeline duration so the same source segment plays. */
+  const handleSpeedChange = useCallback((clipId: string, speed: number) => {
+    setClips((prev) => prev.map((c) => {
+      if (c.id !== clipId) return c;
+      const asset = stateRef.current.assets.find((a) => a.id === c.assetId);
+      const srcSpan = Math.max(0.1, c.duration * c.speed);
+      let dur = srcSpan / speed;
+      if (asset && asset.kind !== 'image') {
+        const maxSrc = Math.max(0.1, asset.duration - c.trimStart);
+        dur = Math.min(dur, maxSrc / speed);
+      }
+      return { ...c, speed, duration: Math.max(0.1, dur) };
+    }));
   }, []);
 
   const patchText = useCallback((id: string, patch: Partial<TextOverlay>) => {
@@ -1192,6 +1211,7 @@ export default function App() {
           text={selectedText}
           canSplit={canSplit}
           onChangeClip={patchClip}
+          onSpeedChange={handleSpeedChange}
           onChangeText={patchText}
           onDeleteSelection={handleDeleteSelection}
           onSplit={handleSplit}

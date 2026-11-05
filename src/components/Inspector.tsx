@@ -8,6 +8,7 @@ interface Props {
   text: TextOverlay | null;
   canSplit: boolean;
   onChangeClip: (id: string, patch: Partial<Clip>) => void;
+  onSpeedChange: (clipId: string, speed: number) => void;
   onChangeText: (id: string, patch: Partial<TextOverlay>) => void;
   onDeleteSelection: () => void;
   onSplit: () => void;
@@ -24,6 +25,7 @@ export default function Inspector({
   text,
   canSplit,
   onChangeClip,
+  onSpeedChange,
   onChangeText,
   onDeleteSelection,
   onSplit,
@@ -99,7 +101,7 @@ export default function Inspector({
             <div className="field">
               <label>Speed — {clip.speed.toFixed(2)}×</label>
               <input type="range" min={0.25} max={2} step={0.25} value={clip.speed}
-                onChange={(e) => onChangeClip(clip.id, { speed: Number(e.target.value) })} />
+                onChange={(e) => onSpeedChange(clip.id, Number(e.target.value))} />
             </div>
 
             <div className="field-group-title">Color correction</div>
