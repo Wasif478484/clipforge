@@ -9,7 +9,7 @@ import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
 import { loadSettings } from './lib/settings';
-import { createMediaElement, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
+import { createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
 import { DEFAULT_FILTER } from './types';
@@ -825,30 +825,76 @@ export default function App() {
     showToast('Redo');
   }, [showToast]);
 
-  const handleSaveProject = useCallback(() => {
-    const data = JSON.stringify({ version: 1, name: projectName, aspect, clips, texts,
-      assets: assets.map((a) => ({ id: a.id, name: a.name, kind: a.kind, duration: a.duration, width: a.width, height: a.height })) }, null, 2);
+  const handleSaveProject = useCallback(async () => {
+    const { clips: clipList, texts: textList, assets: assetList } = stateRef.current;
+    showToast('Packing project file…');
+    const stored: Array<{ id: string; name: string; kind: MediaKind; duration: number; width?: number; height?: number; mime: string; dataUrl: string }> = [];
+    for (const a of assetList) {
+      try {
+        const blob = await (await fetch(a.url)).blob();
+        stored.push({ id: a.id, name: a.name, kind: a.kind, duration: a.duration, width: a.width, height: a.height, mime: blob.type, dataUrl: await blobToDataURL(blob) });
+      } catch {
+        stored.push({ id: a.id, name: a.name, kind: a.kind, duration: a.duration, width: a.width, height: a.height, mime: '', dataUrl: '' });
+      }
+    }
+    const totalBytes = stored.reduce((n, s) => n + (s.dataUrl?.length ?? 0) * 0.75, 0);
+    if (totalBytes > 50 * 1024 * 1024 && !window.confirm(
+      `This project embeds about ${(totalBytes / 1_000_000).toFixed(0)} MB of media and will produce a large file. Save anyway?`,
+    )) {
+      showToast('Save cancelled.');
+      return;
+    }
+    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, assets: stored }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     downloadBlob(blob, `${projectName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'clipforge'}.clipforge.json`);
-    showToast('Project saved.');
-  }, [projectName, aspect, clips, texts, assets, showToast]);
+    showToast('Project saved with embedded media.');
+  }, [projectName, aspect, showToast]);
 
   const handleLoadProject = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(String(reader.result)) as { name?: string; aspect?: Aspect; clips?: Clip[]; texts?: TextOverlay[] };
+        const data = JSON.parse(String(reader.result)) as {
+          version?: number;
+          name?: string;
+          aspect?: Aspect;
+          clips?: Clip[];
+          texts?: TextOverlay[];
+          assets?: Array<{ id: string; name: string; kind: MediaKind; duration: number; width?: number; height?: number; dataUrl?: string }>;
+        };
+        resetProject();
         if (data.name) setProjectName(data.name);
         if (data.aspect) setAspect(data.aspect);
-        if (Array.isArray(data.clips)) setClips(data.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
-        if (Array.isArray(data.texts)) setTexts(data.texts);
-        showToast('Project loaded. Re-import media to restore clips.');
+        const newClips = (data.clips ?? []).map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } }));
+        setTexts(data.texts ?? []);
+        setClips(newClips);
+        const embedded = (data.assets ?? []).filter((a) => typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:'));
+        const missing = newClips.filter((c) => !embedded.some((a) => a.id === c.assetId)).length;
+        if (embedded.length > 0) {
+          void (async () => {
+            const restored: MediaAsset[] = [];
+            for (const a of embedded) {
+              try {
+                const blob = await (await fetch(a.dataUrl as string)).blob();
+                restored.push({ id: a.id, name: a.name, kind: a.kind, url: URL.createObjectURL(blob), duration: a.duration, width: a.width, height: a.height });
+              } catch { /* skip unreadable asset */ }
+            }
+            addAssets(restored);
+            setMode('video');
+            showToast(`Project loaded — ${restored.length} media file${restored.length === 1 ? '' : 's'} restored.${missing > 0 ? ` ${missing} clip(s) reference media that was not embedded; re-import those files.` : ''}`);
+          })();
+        } else {
+          setMode('video');
+          showToast(missing > 0
+            ? `Project loaded. ${missing} clip(s) reference media that is not embedded — re-import those files.`
+            : 'Project loaded.');
+        }
       } catch {
         showToast('Could not read project file.');
       }
     };
     reader.readAsText(file);
-  }, [showToast]);
+  }, [addAssets, resetProject, showToast]);
 
   const selectedClip = selection?.type === 'clip' ? clips.find((c) => c.id === selection.id) ?? null : null;
   const selectedText = selection?.type === 'text' ? texts.find((t) => t.id === selection.id) ?? null : null;

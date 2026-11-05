@@ -36,8 +36,17 @@ export function probeAsset(file: File): Promise<MediaAsset | null> {
   });
 }
 
-/** Revoke the object URL backing an asset (no-op for data: URLs). */
-export function revokeAssetUrl(asset: MediaAsset): void {
+/** Read a Blob as a base64 data URL (used to embed media in project files). */
+export function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('Blob read failed'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Revoke the object URL backing an asset (no-op for data: URLs). */export function revokeAssetUrl(asset: MediaAsset): void {
   if (asset.url.startsWith('blob:')) URL.revokeObjectURL(asset.url);
 }
 
