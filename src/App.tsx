@@ -380,6 +380,7 @@ export default function App() {
   }, [drawAndSync]);
 
   const tick = useCallback(function tick() {
+    if (!canvasRef.current) { finishPlayback(); return; } // editor unmounted mid-export
     const dur = stateRef.current.duration;
     const elapsed = (performance.now() - startStampRef.current) / 1000;
     const t = Math.min(startOffsetRef.current + elapsed, dur);
@@ -444,6 +445,18 @@ export default function App() {
   }, [pause, play]);
 
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+
+  // Abort a running export when the editor unmounts (mode change away from video).
+  useEffect(() => {
+    if (mode === 'video') return;
+    const rec = exportRecorderRef.current;
+    if (rec && rec.state !== 'inactive') { try { rec.stop(); } catch { /* already stopped */ } }
+    exportRecorderRef.current = null;
+    exportDestRef.current = null;
+    cancelAnimationFrame(rafRef.current);
+    playingRef.current = false;
+    setPlaying(false);
+  }, [mode]);
 
   /* ------------------------------------------------ project reset ------------------------------------------------ */
 
@@ -909,6 +922,8 @@ export default function App() {
     const videoStream = canvas.captureStream(30);
     const dest = ctx.createMediaStreamDestination();
     masterGainRef.current?.connect(dest);
+    // progress plumbing — finishPlayback sets exportProgress via the tick loop
+    exportDestRef.current = dest;
     const combined = new MediaStream([...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
     const mime = pickSupportedMime(['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) ?? 'video/webm';
     const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
@@ -917,16 +932,15 @@ export default function App() {
     const webmBlob: Blob = await new Promise((resolve) => {
       recorder.onstop = () => {
         masterGainRef.current?.disconnect(dest);
+        exportDestRef.current = null;
         resolve(new Blob(chunks, { type: mime }));
       };
+      exportRecorderRef.current = recorder;
       recorder.start(250);
       setExportProgress(0);
+      // No manual wait loop: the playback tick calls finishPlayback() at the
+      // end of the timeline, which stops exportRecorderRef exactly once.
       play();
-      const wait = () => {
-        if (currentTimeRef.current >= dur) { recorder.stop(); return; }
-        requestAnimationFrame(wait);
-      };
-      requestAnimationFrame(wait);
     });
     setExportProgress(null);
     showToast('Transcoding to MP4 (this may take a moment)…');
