@@ -161,7 +161,7 @@ export default function Inspector({
             <div className="field-group-title">Transitions</div>
             <div className="field-row">
               <div className="field">
-                <label>Fade in</label>
+                <label>Transition in</label>
                 <select value={clip.transitionIn} onChange={(e) => onChangeClip(clip.id, { transitionIn: e.target.value as Clip['transitionIn'] })}>
                   <option value="none">None</option>
                   <option value="fade">Fade</option>
@@ -170,11 +170,23 @@ export default function Inspector({
                 </select>
               </div>
               <div className="field">
-                <label>Fade out</label>
+                <label>Transition out</label>
                 <select value={clip.transitionOut} onChange={(e) => onChangeClip(clip.id, { transitionOut: e.target.value as Clip['transitionOut'] })}>
                   <option value="none">None</option>
                   <option value="fade">Fade</option>
                 </select>
+              </div>
+            </div>
+            <div className="field-row">
+              <div className="field">
+                <label>Visual fade in (s)</label>
+                <input type="number" min={0} max={clip.duration} step={0.1} value={clip.fadeIn.toFixed(1)}
+                  onChange={(e) => onChangeClip(clip.id, { fadeIn: Math.max(0, Math.min(clip.duration, Number(e.target.value))) })} />
+              </div>
+              <div className="field">
+                <label>Visual fade out (s)</label>
+                <input type="number" min={0} max={clip.duration} step={0.1} value={clip.fadeOut.toFixed(1)}
+                  onChange={(e) => onChangeClip(clip.id, { fadeOut: Math.max(0, Math.min(clip.duration, Number(e.target.value))) })} />
               </div>
             </div>
 

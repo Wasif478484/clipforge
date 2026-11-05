@@ -253,8 +253,9 @@ export default function App() {
         if (!el) continue;
 
         let alpha = 1;
-        const inDur = 0.35;
-        const outDur = 0.35;
+        // Visual fade durations from the clip fields; 0 keeps the legacy 0.35s auto fade.
+        const inDur = clip.fadeIn > 0 ? clip.fadeIn : 0.35;
+        const outDur = clip.fadeOut > 0 ? clip.fadeOut : 0.35;
         if (clip.transitionIn === 'fade' || clip.transitionIn === 'crossfade' || clip.transitionIn === 'slide') {
           if (t - clip.start < inDur) alpha *= Math.max(0, (t - clip.start) / inDur);
         }
