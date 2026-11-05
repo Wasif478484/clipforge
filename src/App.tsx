@@ -1406,6 +1406,7 @@ export default function App() {
         waveforms={waveforms}
         duration={duration}
         currentTime={currentTime}
+        playing={playing}
         pxPerSec={pxPerSec}
         onPxPerSecChange={setPxPerSec}
         selection={selection}

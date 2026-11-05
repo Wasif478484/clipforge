@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay } from '../types';
 import { clamp } from '../util';
 import { FilmIcon, MusicIcon, TypeIcon } from '../icons';
@@ -10,6 +10,7 @@ interface Props {
   waveforms: Record<string, number[]>;
   duration: number;
   currentTime: number;
+  playing: boolean;
   pxPerSec: number;
   onPxPerSecChange: (v: number) => void;
   selection: Selection;
@@ -43,6 +44,7 @@ export default function Timeline({
   waveforms,
   duration,
   currentTime,
+  playing,
   pxPerSec,
   onPxPerSecChange,
   selection,
@@ -54,7 +56,22 @@ export default function Timeline({
   onDropAsset,
 }: Props) {
   const dragRef = useRef<DragState>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const userScrolledRef = useRef(false);
   const [dropTrackId, setDropTrackId] = useState<string | null>(null);
+
+  // Auto-scroll the playhead into view during playback — until the user
+  // scrolls manually, which disables it until the next play().
+  useEffect(() => {
+    if (!playing) { userScrolledRef.current = false; return; }
+    const el = scrollRef.current;
+    if (!el || userScrolledRef.current) return;
+    const x = 56 + currentTime * pxPerSec;
+    const visibleStart = el.scrollLeft;
+    const visibleEnd = el.scrollLeft + el.clientWidth;
+    if (x < visibleStart + 12) el.scrollLeft = Math.max(0, x - 72);
+    else if (x > visibleEnd - 12) el.scrollLeft = x + 72 - el.clientWidth;
+  }, [currentTime, playing, pxPerSec]);
 
   const totalSeconds = Math.max(duration + 30, 60);
   const totalWidth = totalSeconds * pxPerSec;
@@ -231,7 +248,11 @@ export default function Timeline({
           <span aria-hidden="true">+</span>
         </div>
       </div>
-      <div className="timeline-scroll">
+      <div
+        className="timeline-scroll"
+        ref={scrollRef}
+        onWheel={() => { userScrolledRef.current = true; }}
+      >
         <div className="timeline-inner" style={{ width: totalWidth + 56 }}>
           <div
             className="ruler"
