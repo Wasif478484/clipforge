@@ -252,7 +252,7 @@ export default function Timeline({
             </div>
           ))}
 
-          {empty && <div className="timeline-empty">Add media from the left panel — it will appear here as clips.</div>}
+          {empty && <div className="timeline-empty">Add media from the left panel to start your timeline.</div>}
           <div className="playhead" style={{ left: 56 + currentTime * pxPerSec }} />
         </div>
       </div>

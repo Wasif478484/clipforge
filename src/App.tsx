@@ -241,7 +241,8 @@ export default function App() {
     const H = canvas.height;
     const { clips: clipList, texts: textList, assets: assetList } = stateRef.current;
 
-    ctx.fillStyle = '#050506';
+    const canvasBg = getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || 'black';
+    ctx.fillStyle = canvasBg;
     ctx.fillRect(0, 0, W, H);
 
     const drawFitted = (el: HTMLVideoElement | HTMLImageElement, fit: Clip['fit'], filter: Clip['filter'], dx = 0) => {
@@ -564,7 +565,7 @@ export default function App() {
       x: 0.5,
       y: 0.82,
       size: 64,
-      color: '#ffffff',
+      color: 'white',
       start: clamp(currentTimeRef.current, 0, Math.max(0, stateRef.current.duration)),
       duration: 3,
       animation: 'fade',
@@ -767,13 +768,13 @@ export default function App() {
   }, [showToast]);
 
   const applyTemplate = useCallback((template: typeof VIDEO_TEMPLATES[number]) => {
-    const mkText = (text: string, y: number, size: number, color = '#ffffff'): TextOverlay => ({
+    const mkText = (text: string, y: number, size: number, color = 'white'): TextOverlay => ({
       id: uid(), text, x: 0.5, y, size, color, start: 0, duration: 4, animation: 'fade',
     });
     const clips: Clip[] = [];
     const texts = [
-      mkText(template.name, 0.18, 88, '#ffffff'),
-      mkText('Replace with your footage — press Save to pin it to the dashboard', 0.84, 30, '#f5f6f8'),
+      mkText(template.name, 0.18, 88, 'white'),
+      mkText('Replace with your footage — press Save to pin it to the dashboard', 0.84, 30, 'white'),
     ];
     setProjectName(template.name);
     setAspect(template.aspect);
@@ -1011,6 +1012,7 @@ export default function App() {
         exportProgress={exportProgress}
         mp4Busy={mp4Busy}
         canExport={duration > 0}
+        defaultExportFormat={(() => { try { return JSON.parse(localStorage.getItem('clipforge-settings-v1') || '{}').defaultExportFormat || 'webm'; } catch { return 'webm'; } })()}
       />
       <main className="workspace">
         <MediaPanel

@@ -39,8 +39,8 @@ const Stage = forwardRef<HTMLCanvasElement, Props>(function Stage(
             <div className="stage-hint">
               <div className="empty-tile large"><FilmIcon size={34} strokeWidth={1.5} /></div>
               <div className="stage-hint-copy">
-                <b>Your timeline is empty</b>
-                <span>Import media on the left, then press <b>+</b> to add it — or generate a sample.</span>
+                <b>Nothing on the timeline yet</b>
+                <span>Import a file on the left, then click + to add it.</span>
               </div>
             </div>
           )}

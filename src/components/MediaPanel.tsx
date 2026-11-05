@@ -82,7 +82,7 @@ export default function MediaPanel({
           <div className="empty-state">
             <div className="empty-tile"><FilmIcon size={26} strokeWidth={1.6} /></div>
             <p><b>No media yet</b></p>
-            <p>Import your own files or generate a sample — everything is processed locally in your browser.</p>
+            <p>Import files or generate a sample. Everything is processed in your browser.</p>
           </div>
         )}
       </div>

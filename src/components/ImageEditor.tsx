@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DownloadIcon, TrashIcon, PlusIcon } from '../icons';
 import { downloadBlob, uid } from '../util';
+import { ACCENT } from '../theme';
 
 interface Adjustments {
   brightness: number; contrast: number; saturation: number; hue: number;
@@ -72,13 +73,13 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
   const [adj, setAdj] = useState<Adjustments>({ ...DEFAULT_ADJ });
   const [preset, setPreset] = useState('Original');
   const [tool, setTool] = useState<Tool>('select');
-  const [brushColor, setBrushColor] = useState('#ffffff');
+  const [brushColor, setBrushColor] = useState('white');
   const [brushSize, setBrushSize] = useState(12);
   const [brushOpacity, setBrushOpacity] = useState(1);
   const [textValue, setTextValue] = useState('Text');
   const [textSize, setTextSize] = useState(48);
-  const [textColor, setTextColor] = useState('#ffffff');
-  const [shapeStroke, setShapeStroke] = useState('#ffffff');
+  const [textColor, setTextColor] = useState('white');
+  const [shapeStroke, setShapeStroke] = useState('white');
   const [shapeFill, setShapeFill] = useState('transparent');
   const [shapeWidth, setShapeWidth] = useState(3);
   const [layers, setLayers] = useState<Layer[]>([]);
@@ -190,7 +191,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(0, 0, w, h);
       ctx.clearRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
-      ctx.strokeStyle = '#ec4899';
+      ctx.strokeStyle = ACCENT;
       ctx.lineWidth = 2;
       ctx.strokeRect(cropRect.x, cropRect.y, cropRect.w, cropRect.h);
       // rule of thirds
@@ -804,7 +805,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
               <h3 className="panel-title">Shape</h3>
               <div className="field"><label>Stroke</label><input type="color" value={shapeStroke} onChange={(e) => setShapeStroke(e.target.value)} /></div>
               <div className="field"><label>Stroke width — {shapeWidth}px</label><input type="range" min={1} max={20} value={shapeWidth} onChange={(e) => setShapeWidth(Number(e.target.value))} /></div>
-              <div className="field"><label>Fill</label><input type="color" value={shapeFill === 'transparent' ? '#000000' : shapeFill} onChange={(e) => setShapeFill(e.target.value)} />
+              <div className="field"><label>Fill</label><input type="color" value={shapeFill === 'transparent' ? 'white' : shapeFill} onChange={(e) => setShapeFill(e.target.value)} />
                 <button className="btn ghost small" onClick={() => setShapeFill('transparent')}>Transparent</button>
               </div>
             </div>

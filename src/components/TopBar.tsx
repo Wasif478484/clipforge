@@ -1,5 +1,7 @@
 import type { Aspect } from '../types';
-import { DownloadIcon, TypeIcon } from '../icons';
+import { TypeIcon } from '../icons';
+import { Logo } from '../icons';
+import { useState } from 'react';
 
 interface Props {
   projectName: string;
@@ -15,9 +17,10 @@ interface Props {
   onSaveProject?: () => void;
   onSaveToRecent?: () => void;
   onLoadProject?: (file: File) => void;
-  exportProgress: number | null; // null when idle
+  exportProgress: number | null;
   mp4Busy: boolean;
   canExport: boolean;
+  defaultExportFormat?: 'webm' | 'mp4';
 }
 
 export default function TopBar({
@@ -37,18 +40,24 @@ export default function TopBar({
   exportProgress,
   mp4Busy,
   canExport,
+  defaultExportFormat = 'webm',
 }: Props) {
-  // (exporting derived inline where needed)
+  const [exportFormat, setExportFormat] = useState<'webm' | 'mp4'>(defaultExportFormat);
+
+  const handleExport = () => {
+    if (exportFormat === 'mp4') {
+      onExportMp4();
+    } else {
+      onExport();
+    }
+  };
+
+  const exporting = exportProgress !== null || mp4Busy;
+
   return (
     <header className="topbar">
-      <div className="brand" title="ClipForge — open-source video editor">
-        <svg width="26" height="26" viewBox="0 0 64 64" aria-hidden="true">
-          <rect width="64" height="64" rx="14" fill="#14171c" />
-          <path d="M10 24l44-6-2.6 12.4-44 6z" fill="#35e0c0" opacity="0.9" />
-          <path d="M10 34h44v14a6 6 0 0 1-6 6H16a6 6 0 0 1-6-6z" fill="#35e0c0" />
-          <path d="M15 22l5.4-9M27 20l5.4-9M39 18l5.4-9" stroke="#0d0f12" strokeWidth="3.4" strokeLinecap="round" />
-          <path d="M28 40l12 6.2-12 6.2z" fill="#0d0f12" />
-        </svg>
+      <div className="brand" title="ClipForge - open-source video editor">
+        <Logo size={24} />
         Clip<span className="dot">Forge</span>
       </div>
 
@@ -64,14 +73,14 @@ export default function TopBar({
       </div>
 
       {onSaveToRecent && (
-        <button className="btn ghost small" onClick={onSaveToRecent} title="Save to dashboard (local recent list)">
-          Save to dashboard
+        <button className="btn ghost small" onClick={onSaveToRecent} title="Save to recents (local)">
+          Save to recents
         </button>
       )}
 
       {onSaveProject && (
         <button className="btn ghost small" onClick={onSaveProject} title="Save project (.clipforge.json)">
-          Save
+          Save project file
         </button>
       )}
       {onLoadProject && (
@@ -105,21 +114,18 @@ export default function TopBar({
 
       <div className="spacer" />
 
-      <a
-        className="btn ghost small download-link"
-        href="https://github.com/Wasif478484/clipforge/releases/latest"
-        target="_blank"
-        rel="noreferrer"
-        title="Download ClipForge for Windows, macOS and Linux"
+      <select
+        className="export-format-select"
+        value={exportFormat}
+        onChange={(e) => setExportFormat(e.target.value as 'webm' | 'mp4')}
+        aria-label="Export format"
+        title="Export format"
       >
-        <DownloadIcon size={15} />
-        Download
-      </a>
-      <button className="btn" onClick={onExport} disabled={!canExport || exportProgress !== null}>
-        {exportProgress !== null ? `Exporting… ${Math.round(exportProgress * 100)}%` : 'Export WebM'}
-      </button>
-      <button className="btn ghost small" onClick={onExportMp4} disabled={!canExport || mp4Busy} title="Export as MP4 (H.264) via ffmpeg.wasm">
-        {mp4Busy ? 'MP4…' : 'Export MP4'}
+        <option value="webm">WebM</option>
+        <option value="mp4">MP4</option>
+      </select>
+      <button className="btn" onClick={handleExport} disabled={!canExport || exporting}>
+        {exporting ? `Exporting... ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export'}
       </button>
     </header>
   );

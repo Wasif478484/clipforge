@@ -22,25 +22,24 @@ import {
   LayoutGridIcon,
   PencilIcon,
   WandIcon,
+  Logo,
 } from '../icons';
-import { Studio3DHero } from './Studio3D';
 
 export interface VideoTemplate {
   id: string;
   name: string;
   desc: string;
   aspect: '16:9' | '9:16' | '1:1';
-  accent: string;
   tag: string;
 }
 
 export const VIDEO_TEMPLATES: VideoTemplate[] = [
-  { id: 'cinematic', name: 'Cinematic Vlog', desc: '16:9 · slow fades and muted grade', aspect: '16:9', accent: '#ef4b9a', tag: '16:9' },
-  { id: 'reel',      name: 'Social Reel',    desc: '9:16 · fast cuts, bold caption', aspect: '9:16', accent: '#f6b86a', tag: '9:16' },
-  { id: 'square',    name: 'Product Grid',   desc: '1:1 · square for social feeds',  aspect: '1:1', accent: '#f6cc8b', tag: '1:1' },
-  { id: 'slideshow', name: 'Photo Slideshow',desc: '16:9 · Ken Burns-style motion',  aspect: '16:9', accent: '#e08a6b', tag: '16:9' },
-  { id: 'minimal',   name: 'Minimal Dark',   desc: '16:9 · muted, letterboxed look', aspect: '16:9', accent: '#e9e0cf', tag: '16:9' },
-  { id: 'vertical',  name: 'Vertical Interview', desc: '9:16 · face-first framing',  aspect: '9:16', accent: '#a7c8d8', tag: '9:16' },
+  { id: 'cinematic', name: 'Cinematic Vlog', desc: '16:9 · slow fades and muted grade', aspect: '16:9', tag: '16:9' },
+  { id: 'reel',      name: 'Social Reel',    desc: '9:16 · fast cuts, bold caption', aspect: '9:16', tag: '9:16' },
+  { id: 'square',    name: 'Product Grid',   desc: '1:1 · square for social feeds',  aspect: '1:1', tag: '1:1' },
+  { id: 'slideshow', name: 'Photo Slideshow',desc: '16:9 · Ken Burns-style motion',  aspect: '16:9', tag: '16:9' },
+  { id: 'minimal',   name: 'Minimal Dark',   desc: '16:9 · muted, letterboxed look', aspect: '16:9', tag: '16:9' },
+  { id: 'vertical',  name: 'Vertical Interview', desc: '9:16 · face-first framing',  aspect: '9:16', tag: '9:16' },
 ];
 
 interface Props {
@@ -58,7 +57,7 @@ const REPO = 'https://github.com/Wasif478484/clipforge';
 const CHANGE_LOG = [
   'Recent projects live locally with frames from your cut',
   'Save / load projects with media intact',
-  'Colour grades and transitions in the inspector',
+  'Color grades and transitions in the inspector',
   'MP4 export, backups, full-screen mode',
 ];
 
@@ -124,39 +123,24 @@ export default function Dashboard({
   return (
     <div className="studio">
       {/* ── Ambient background ─────────────────────────────────────────────── */}
-      <div className="studio-bg" aria-hidden="true">
-        <div className="orb orb-a" />
-        <div className="orb orb-b" />
-        <div className="orb orb-c" />
-        <div className="grain" />
-      </div>
-
       {/* ── Sidebar ───────────────────────────────────────────────────────── */}
       <aside className="studio-sidebar" aria-label="Navigation">
         <div className="studio-brand">
-          <svg className="studio-logo" width="30" height="30" viewBox="0 0 256 256" aria-hidden="true">
-            <rect width="256" height="256" rx="54" fill="#141018"/>
-            <rect x="46" y="62" width="164" height="132" rx="30" fill="#1e1a23"/>
-            <rect x="46" y="54" width="164" height="34" rx="17" fill="#ef4b9a"/>
-            <path d="M68 54l14 34M106 54l14 34M144 54l14 34M182 54l14 34" stroke="#141018" stroke-width="10" stroke-linecap="round"/>
-            <path d="M111 140l38 22-38 22z" fill="#efe9dd"/>
-          </svg>
+          <Logo size={30} />
           <div>
             <div className="studio-brand-name">ClipForge</div>
-            <div className="studio-brand-tag">Video & image studio</div>
+            <div className="studio-brand-tag">Video and photo editor</div>
           </div>
         </div>
 
         <div className="studio-nav">
           <button className="studio-nav-item is-active" onClick={onNewVideo} aria-current="page">
             <FilmIcon size={16} strokeWidth={1.7} />
-            <span>Studio</span>
-            <span className="studio-nav-hint">Projects</span>
+            <span>Projects</span>
           </button>
           <button className="studio-nav-item" onClick={onNewImage}>
             <ImageIcon size={16} strokeWidth={1.7} />
-            <span>Retouch</span>
-            <span className="studio-nav-hint">Photo tool</span>
+            <span>Images</span>
           </button>
           <a className="studio-nav-item" href={RELEASES} target="_blank" rel="noreferrer">
             <DownloadIcon size={16} strokeWidth={1.7} />
@@ -165,13 +149,12 @@ export default function Dashboard({
           </a>
           <a className="studio-nav-item" href={REPO} target="_blank" rel="noreferrer">
             <BookIcon size={16} strokeWidth={1.7} />
-            <span>Source</span>
-            <span className="studio-nav-hint">MIT</span>
+            <span>GitHub</span>
           </a>
         </div>
 
         <div className="studio-local-badge" aria-label="Everything stays on your device">
-          Local‑first — nothing leaves your device
+          Files stay on this device.
         </div>
       </aside>
 
@@ -182,15 +165,13 @@ export default function Dashboard({
           <div className="studio-hero-row">
             <div className="studio-hero-copy">
               <h1 className="studio-title">
-                Pick up your <em>cut</em>, retouch<br />a frame, or start something new.
+                Projects
               </h1>
               <p className="studio-sub">
-                A fast, private, open-source video editor and photo tool that lives on your machine — no account, no upload, no telemetry.
+                Edit video and retouch images in your browser. Files stay on this device.
               </p>
             </div>
-            <div className="studio-hero-media" aria-hidden="true">
-              <Studio3DHero />
-            </div>
+
           </div>
 
           <div className="studio-commands">
@@ -218,7 +199,6 @@ export default function Dashboard({
         <section className="studio-section" aria-labelledby="create-title">
           <div className="studio-section-head">
             <h2 id="create-title" className="studio-section-title"><PlusIcon size={13} strokeWidth={2.2} /> Create</h2>
-            <span className="studio-section-tag">Pick a starting point</span>
           </div>
           <div className="studio-create-grid">
             <button className="studio-create-card warm" onClick={onNewVideo}>
@@ -233,7 +213,7 @@ export default function Dashboard({
               <div className="studio-create-icon"><ImageIcon size={22} strokeWidth={1.5} /></div>
               <div className="studio-create-body">
                 <b>New image project</b>
-                <span>Crop, retouch, background removal — export PNG, JPEG, WebP.</span>
+                <span>Crop and retouch, then export.</span>
               </div>
               <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </button>
@@ -243,7 +223,7 @@ export default function Dashboard({
               <div className="studio-create-icon"><WandIcon size={22} strokeWidth={1.5} /></div>
               <div className="studio-create-body">
                 <b>Import your footage</b>
-                <span>Drop in videos, audio and images to build your timeline.</span>
+                <span>Add video, audio or images to a new timeline.</span>
               </div>
               <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </label>
@@ -253,7 +233,7 @@ export default function Dashboard({
               <div className="studio-create-icon"><ImageIcon size={22} strokeWidth={1.5} /></div>
               <div className="studio-create-body">
                 <b>Batch image look</b>
-                <span>Apply one look to many images — export them all at once.</span>
+                <span>Apply one look to several images at once.</span>
               </div>
               <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </label>
@@ -316,7 +296,7 @@ export default function Dashboard({
         {/* Templates */}
         <section className="studio-section" aria-labelledby="templates-title">
           <div className="studio-section-head">
-            <h2 id="templates-title" className="studio-section-title"><WandIcon size={13} strokeWidth={2} /> Starter looks</h2>
+            <h2 id="templates-title" className="studio-section-title"><WandIcon size={13} strokeWidth={2} /> Templates</h2>
             <span className="studio-section-tag">Apply to current project</span>
           </div>
           <div className="studio-template-grid">
@@ -394,7 +374,7 @@ export default function Dashboard({
         </div>
 
         <footer className="studio-foot">
-          <span>ClipForge is free and open source (MIT). Independent project — not affiliated with CapCut or ByteDance.</span>
+          <span>MIT licensed. Not affiliated with CapCut or ByteDance.</span>
           <a href={REPO} target="_blank" rel="noreferrer" className="studio-foot-link">github.com/Wasif478484/clipforge</a>
         </footer>
       </main>

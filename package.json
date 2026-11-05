@@ -97,11 +97,8 @@
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@mediapipe/tasks-vision": "^1.2.2",
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.2",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "three": "^0.187.0"
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

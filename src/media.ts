@@ -63,7 +63,7 @@ export interface SampleResult {
 
 /**
  * Generate a ~6 s sample clip entirely in the browser:
- * animated gradient + bouncing ball on a canvas, with a soft two-tone chime.
+ * animated background + bouncing ball on a canvas, with a soft two-tone chime.
  * Returns an object URL for the resulting WebM.
  */
 export function generateSampleVideo(onProgress?: (frac: number) => void): Promise<SampleResult> {
@@ -120,7 +120,7 @@ export function generateSampleVideo(onProgress?: (frac: number) => void): Promis
       const t = (performance.now() - started) / 1000;
       const f = t / duration;
       onProgress?.(Math.min(1, f));
-      // animated gradient background
+      // animated background
       const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       grad.addColorStop(0, `hsl(${(t * 40) % 360} 60% 18%)`);
       grad.addColorStop(1, `hsl(${(t * 40 + 120) % 360} 60% 32%)`);
@@ -165,7 +165,7 @@ export function generateSampleVideo(onProgress?: (frac: number) => void): Promis
   });
 }
 
-/** Instant sample image: gradient poster generated via canvas → PNG blob. */
+/** Instant sample image: poster generated via canvas → PNG blob. */
 export function generateSampleImage(): Promise<SampleResult> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');

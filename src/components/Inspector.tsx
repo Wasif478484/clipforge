@@ -125,7 +125,7 @@ export default function Inspector({
               </div>
             ))}
             <div className="field">
-              <label>Colour grade</label>
+              <label>Color grade</label>
               <select
                 defaultValue="custom"
                 onChange={(e) => {

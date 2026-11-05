@@ -118,6 +118,15 @@ export const DownloadIcon = (p: IconProps) => (
   </Base>
 );
 
+export const Logo = ({ size = 28 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 256 256" aria-hidden="true" fill="none" style={{ color: 'var(--accent)' }}>
+    <rect width="256" height="256" rx="54" fill="currentColor" opacity="0.12" />
+    <rect x="46" y="62" width="164" height="132" rx="30" fill="currentColor" opacity="0.2" />
+    <rect x="46" y="54" width="164" height="34" rx="17" fill="currentColor" />
+    <path d="M68 54l14 34M106 54l14 34M144 54l14 34M182 54l14 34" stroke="var(--canvas)" strokeWidth="10" strokeLinecap="round" />
+    <path d="M111 140l38 22-38 22z" fill="var(--canvas)" />
+  </svg>
+);
 export const ImagePlusIcon = (p: IconProps) => (
   <Base {...p}>
     <rect x="3" y="3" width="18" height="18" rx="2" />
