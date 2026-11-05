@@ -8,7 +8,7 @@ import ImageEditor from './components/ImageEditor';
 import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
-import { createMediaElement, generateSampleImage, generateSampleVideo, probeAsset } from './media';
+import { createMediaElement, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
 import { DEFAULT_FILTER } from './types';
@@ -584,7 +584,7 @@ export default function App() {
     for (const [, source] of sourceByAsset.current) { try { source.disconnect(); } catch { /* noop */ } }
     sourceByAsset.current.clear();
     mediaEls.current.clear();
-    for (const a of stateRef.current.assets) URL.revokeObjectURL(a.url);
+    revokeAllAssetUrls(stateRef.current.assets);
     historyRef.current = { past: [], present: '', future: [] };
     setAssets([]);
     setClips([]);
@@ -603,6 +603,36 @@ export default function App() {
   const addAssets = useCallback((items: MediaAsset[]) => {
     for (const asset of items) mediaEls.current.set(asset.id, createMediaElement(asset));
     setAssets((prev) => [...prev, ...items]);
+  }, []);
+
+  /** Delete an asset: revoke its object URL, drop its element and any clips using it. */
+  const handleDeleteAsset = useCallback((assetId: string) => {
+    const asset = stateRef.current.assets.find((a) => a.id === assetId);
+    if (asset) {
+      revokeAssetUrl(asset);
+      const source = sourceByAsset.current.get(assetId);
+      if (source) { try { source.disconnect(); } catch { /* noop */ } sourceByAsset.current.delete(assetId); }
+      mediaEls.current.delete(assetId);
+    }
+    setAssets((prev) => prev.filter((a) => a.id !== assetId));
+    setClips((prev) => prev.filter((c) => {
+      if (c.assetId !== assetId) return true;
+      const gain = gainByClip.current.get(c.id);
+      if (gain) { try { gain.disconnect(); } catch { /* noop */ } gainByClip.current.delete(c.id); }
+      return false;
+    }));
+    setSelection((sel) => {
+      if (sel?.type === 'clip') {
+        const stillThere = stateRef.current.clips.some((c) => c.id === sel.id && c.assetId !== assetId);
+        return stillThere ? sel : null;
+      }
+      return sel;
+    });
+    setWaveforms((prev) => {
+      const next = { ...prev };
+      delete next[assetId];
+      return next;
+    });
   }, []);
 
   const handleOpenVideo = useCallback(() => {
@@ -1193,6 +1223,7 @@ export default function App() {
           onGenerateSampleVideo={handleGenerateSampleVideo}
           onGenerateSampleImage={handleGenerateSampleImage}
           onAddToTimeline={handleAddToTimeline}
+          onDeleteAsset={handleDeleteAsset}
           generatingSample={generatingSample}
         />
         <Stage

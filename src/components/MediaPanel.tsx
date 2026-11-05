@@ -1,8 +1,22 @@
 import type { MediaAsset, MediaKind } from '../types';
 import { formatClock } from '../util';
 import { FilmIcon, MusicIcon, ImageIcon, PlusIcon, UploadIcon, SparklesIcon, ImagePlusIcon } from '../icons';
+interface Props {
+  assets: MediaAsset[];
+  onImportFiles: (files: FileList | File[]) => void;
+  onGenerateSampleVideo: () => void;
+  onGenerateSampleImage: () => void;
+  onAddToTimeline: (assetId: string) => void;
+  onDeleteAsset: (assetId: string) => void;
+  generatingSample: boolean;
+}
 
 const KIND_ICON: Record<MediaKind, typeof FilmIcon> = { video: FilmIcon, audio: MusicIcon, image: ImageIcon };
+const TrashGlyph = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" />
+  </svg>
+);
 
 interface Props {
   assets: MediaAsset[];
@@ -19,6 +33,7 @@ export default function MediaPanel({
   onGenerateSampleVideo,
   onGenerateSampleImage,
   onAddToTimeline,
+  onDeleteAsset,
   generatingSample,
 }: Props) {
   return (
@@ -71,6 +86,9 @@ export default function MediaPanel({
                       {asset.kind} · {formatClock(asset.duration)}{asset.width ? ` · ${asset.width}×${asset.height}` : ''}
                     </div>
                   </div>
+                  <button className="add-btn" onClick={() => onDeleteAsset(asset.id)} title={`Remove ${asset.name}`} aria-label={`Remove ${asset.name} from the project`}>
+                    <TrashGlyph />
+                  </button>
                   <button className="add-btn" onClick={() => onAddToTimeline(asset.id)} title="Add to timeline" aria-label={`Add ${asset.name} to timeline`}>
                     <PlusIcon size={16} strokeWidth={2.4} />
                   </button>

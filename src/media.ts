@@ -36,8 +36,17 @@ export function probeAsset(file: File): Promise<MediaAsset | null> {
   });
 }
 
-/** Create the backing DOM element for an asset (kept off-screen). */
-export function createMediaElement(asset: MediaAsset): HTMLVideoElement | HTMLAudioElement | HTMLImageElement {
+/** Revoke the object URL backing an asset (no-op for data: URLs). */
+export function revokeAssetUrl(asset: MediaAsset): void {
+  if (asset.url.startsWith('blob:')) URL.revokeObjectURL(asset.url);
+}
+
+/** Revoke every object URL in an asset list. */
+export function revokeAllAssetUrls(assets: readonly MediaAsset[]): void {
+  for (const asset of assets) revokeAssetUrl(asset);
+}
+
+/** Create the backing DOM element for an asset (kept off-screen). */export function createMediaElement(asset: MediaAsset): HTMLVideoElement | HTMLAudioElement | HTMLImageElement {
   if (asset.kind === 'image') {
     const img = new Image();
     img.src = asset.url;
