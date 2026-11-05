@@ -549,7 +549,19 @@ export default function App() {
     else play();
   }, [pause, play]);
 
-  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+  // Full teardown on unmount: RAF, recorder, audio graph, context, object URLs.
+  useEffect(() => () => {
+    cancelAnimationFrame(rafRef.current);
+    const rec = exportRecorderRef.current;
+    if (rec && rec.state !== 'inactive') { try { rec.stop(); } catch { /* already stopped */ } }
+    for (const [, source] of sourceByAsset.current) { try { source.disconnect(); } catch { /* noop */ } }
+    for (const [, gain] of gainByClip.current) { try { gain.disconnect(); } catch { /* noop */ } }
+    sourceByAsset.current.clear();
+    gainByClip.current.clear();
+    void audioCtxRef.current?.close().catch(() => undefined);
+    audioCtxRef.current = null;
+    revokeAllAssetUrls(stateRef.current.assets);
+  }, []);
 
   // Abort a running export when the editor unmounts (mode change away from video).
   useEffect(() => {
