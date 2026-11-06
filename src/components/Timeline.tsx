@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay } from '../types';
+import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay, type TimelineMarker } from '../types';
 import { clamp } from '../util';
 import { FilmIcon, MusicIcon, TypeIcon } from '../icons';
 
@@ -21,6 +21,16 @@ interface Props {
   onPatchClip: (id: string, patch: Partial<Clip>) => void;
   onPatchText: (id: string, patch: Partial<TextOverlay>) => void;
   onDropAsset: (assetId: string, trackId: string, time: number) => void;
+  snapEnabled: boolean;
+  onSnapEnabledChange: (enabled: boolean) => void;
+  markers: TimelineMarker[];
+  onAddMarker: () => void;
+  onRemoveMarker: (id: string) => void;
+  inPoint: number | null;
+  outPoint: number | null;
+  onSetInPoint: () => void;
+  onSetOutPoint: () => void;
+  onClearRange: () => void;
 }
 
 type DragState =
@@ -56,6 +66,16 @@ export default function Timeline({
   onPatchClip,
   onPatchText,
   onDropAsset,
+  snapEnabled,
+  onSnapEnabledChange,
+  markers,
+  onAddMarker,
+  onRemoveMarker,
+  inPoint,
+  outPoint,
+  onSetInPoint,
+  onSetOutPoint,
+  onClearRange,
 }: Props) {
   const dragRef = useRef<DragState>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -93,6 +113,17 @@ export default function Timeline({
   }, [totalSeconds, tickStep, pxPerSec]);
 
   const clipsInLane = (trackId: string) => clips.filter((c) => c.trackId === trackId);
+  const snapTime = (time: number, threshold = 0.15) => {
+    if (!snapEnabled) return clamp(time, 0, totalSeconds);
+    const candidates = [0, currentTime, ...markers.map((marker) => marker.time)];
+    for (const clip of clips) candidates.push(clip.start, clip.start + clip.duration);
+    for (const text of texts) candidates.push(text.start, text.start + text.duration);
+    const nearest = candidates.reduce<{ time: number; distance: number } | null>((best, candidate) => {
+      const distance = Math.abs(candidate - time);
+      return !best || distance < best.distance ? { time: candidate, distance } : best;
+    }, null);
+    return nearest && nearest.distance <= threshold ? nearest.time : clamp(time, 0, totalSeconds);
+  };
 
   const startDrag = (
     e: ReactPointerEvent<HTMLDivElement>,
@@ -111,7 +142,7 @@ export default function Timeline({
       const lane = (e.currentTarget.closest('.timeline-inner') as HTMLElement | null);
       if (!lane) return;
       const rect = lane.getBoundingClientRect();
-      onSeek(clamp((e.clientX - rect.left - 56) / pxPerSec, 0, totalSeconds));
+      onSeek(snapTime((e.clientX - rect.left - 56) / pxPerSec));
       return;
     }
 
@@ -120,7 +151,7 @@ export default function Timeline({
     if (drag.kind === 'clip') {
       const o = drag.orig;
       if (drag.mode === 'move') {
-        let newStart = clamp(o.start + dx, 0, totalSeconds);
+        let newStart = snapTime(o.start + dx);
         // vertical track change: find the lane under the pointer
         const lane = document.elementFromPoint(e.clientX, e.clientY)?.closest('.track-lane') as HTMLElement | null;
         const targetTrackId = lane?.dataset.trackId ?? null;
@@ -146,12 +177,12 @@ export default function Timeline({
         }
         onPatchClip(drag.id, { start: newStart });
       } else if (drag.mode === 'left') {
-        const newStart = clamp(o.start + dx, 0, o.start + o.duration - 0.1);
+        const newStart = snapTime(clamp(o.start + dx, 0, o.start + o.duration - 0.1));
         const d = newStart - o.start;
         onPatchClip(drag.id, { start: newStart, duration: o.duration - d, trimStart: o.trimStart + d });
       } else {
         const maxDur = o.duration + o.trimEnd;
-        onPatchClip(drag.id, { duration: clamp(o.duration + dx, 0.1, maxDur) });
+        onPatchClip(drag.id, { duration: clamp(snapTime(o.duration + dx), 0.1, maxDur) });
       }
       return;
     }
@@ -159,13 +190,13 @@ export default function Timeline({
     // text overlay drag
     const o = drag.orig;
     if (drag.mode === 'move') {
-      onPatchText(drag.id, { start: clamp(o.start + dx, 0, totalSeconds) });
+      onPatchText(drag.id, { start: snapTime(o.start + dx) });
     } else if (drag.mode === 'left') {
-      const newStart = clamp(o.start + dx, 0, o.start + o.duration - 0.1);
+      const newStart = snapTime(clamp(o.start + dx, 0, o.start + o.duration - 0.1));
       const d = newStart - o.start;
       onPatchText(drag.id, { start: newStart, duration: o.duration - d });
     } else {
-      onPatchText(drag.id, { duration: clamp(o.duration + dx, 0.1, totalSeconds) });
+      onPatchText(drag.id, { duration: clamp(snapTime(o.duration + dx), 0.1, totalSeconds) });
     }
   };
 
@@ -241,6 +272,15 @@ export default function Timeline({
     <section className="timeline" aria-label="Timeline">
       <div className="timeline-head">
         <div className="timeline-title">Timeline</div>
+        <div className="timeline-tools">
+          <button className={`timeline-tool${snapEnabled ? ' active' : ''}`} onClick={() => onSnapEnabledChange(!snapEnabled)} aria-pressed={snapEnabled} title="Toggle magnetic snapping">
+            Snap
+          </button>
+          <button className="timeline-tool" onClick={onAddMarker} title="Add marker at playhead">Marker</button>
+          <button className="timeline-tool" onClick={onSetInPoint} title="Set in point at playhead">I</button>
+          <button className="timeline-tool" onClick={onSetOutPoint} title="Set out point at playhead">O</button>
+          {(inPoint !== null || outPoint !== null) && <button className="timeline-tool" onClick={onClearRange} title="Clear in and out points">Clear range</button>}
+        </div>
         <div className="zoom">
           <span aria-hidden="true">−</span>
           <input
@@ -262,7 +302,7 @@ export default function Timeline({
             style={{ width: totalWidth + 56 }}
             onPointerDown={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
-              onSeek(clamp((e.clientX - rect.left - 56) / pxPerSec, 0, totalSeconds));
+              onSeek(snapTime((e.clientX - rect.left - 56) / pxPerSec));
               startDrag(e, { kind: 'ruler' });
             }}
             onPointerMove={handlePointerMove}
@@ -283,6 +323,20 @@ export default function Timeline({
                 {tick.label}
               </div>
             ))}
+            {markers.map((marker) => (
+              <button
+                key={marker.id}
+                className="timeline-marker"
+                style={{ left: marker.time * pxPerSec + 56 }}
+                title={`${marker.label} · ${formatTick(marker.time)}. Click to remove.`}
+                onClick={(e) => { e.stopPropagation(); onRemoveMarker(marker.id); }}
+                aria-label={`Remove marker ${marker.label}`}
+              >
+                <span>{marker.label}</span>
+              </button>
+            ))}
+            {inPoint !== null && <div className="range-marker in" style={{ left: 56 + inPoint * pxPerSec }} aria-label="In point" />}
+            {outPoint !== null && <div className="range-marker out" style={{ left: 56 + outPoint * pxPerSec }} aria-label="Out point" />}
           </div>
 
           {TRACKS.map((track) => (

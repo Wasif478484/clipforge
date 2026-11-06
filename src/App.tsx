@@ -12,7 +12,7 @@ import { putRecentProject, type RecentProject } from './lib/recent';
 import { loadSettings } from './lib/settings';
 import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
-import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
+import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay, TimelineMarker } from './types';
 import { CANVAS_SIZE, DEFAULT_FILTER } from './types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
@@ -33,6 +33,10 @@ export default function App() {
   const [mp4Busy, setMp4Busy] = useState(false);
   const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
+  const [snapEnabled, setSnapEnabled] = useState(true);
+  const [markers, setMarkers] = useState<TimelineMarker[]>([]);
+  const [inPoint, setInPoint] = useState<number | null>(null);
+  const [outPoint, setOutPoint] = useState<number | null>(null);
 
   const [mode, setMode] = useState<'home' | 'video' | 'image' | 'dashboard'>('home');
   const [imageSource, setImageSource] = useState<string | null>(null);
@@ -1419,6 +1423,19 @@ export default function App() {
   }, []);
 
   const hasContent = clips.length + texts.length > 0;
+  const addMarker = useCallback(() => {
+    setMarkers((previous) => [...previous, { id: uid(), time: currentTimeRef.current, label: `M${previous.length + 1}` }].sort((a, b) => a.time - b.time));
+  }, []);
+  const setInPointAtPlayhead = useCallback(() => {
+    const time = currentTimeRef.current;
+    setInPoint(time);
+    setOutPoint((previous) => previous !== null && previous < time ? null : previous);
+  }, []);
+  const setOutPointAtPlayhead = useCallback(() => {
+    const time = currentTimeRef.current;
+    setOutPoint(time);
+    setInPoint((previous) => previous !== null && previous > time ? null : previous);
+  }, []);
 
   if (mode === 'home') {
     return (
@@ -1530,6 +1547,16 @@ export default function App() {
         onPatchClip={patchClip}
         onPatchText={patchText}
         onDropAsset={handleDropAsset}
+        snapEnabled={snapEnabled}
+        onSnapEnabledChange={setSnapEnabled}
+        markers={markers}
+        onAddMarker={addMarker}
+        onRemoveMarker={(id) => setMarkers((previous) => previous.filter((marker) => marker.id !== id))}
+        inPoint={inPoint}
+        outPoint={outPoint}
+        onSetInPoint={setInPointAtPlayhead}
+        onSetOutPoint={setOutPointAtPlayhead}
+        onClearRange={() => { setInPoint(null); setOutPoint(null); }}
       />
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>

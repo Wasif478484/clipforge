@@ -78,6 +78,13 @@ export interface TextOverlay {
   animation: 'none' | 'fade' | 'slide-up' | 'slide-left' | 'typewriter' | 'pop' | 'bounce' | 'scale-in' | 'glitch' | 'word-reveal' | 'neon-flicker';
 }
 
+export interface TimelineMarker {
+  id: string;
+  time: number;
+  label: string;
+  color?: string;
+}
+
 export type Selection = { type: 'clip' | 'text'; id: string } | null;
 
 export const TRACKS: Track[] = [
