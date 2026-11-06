@@ -89,6 +89,16 @@ button:disabled { cursor: default; }
   border-radius: var(--r-sm); padding: 6px 10px; font-size: 13px; font-weight: 650;
   width: 240px; outline: none;
 }
+.project-group { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.save-state { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; white-space: nowrap; color: var(--ink-muted); }
+.save-state-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
+.save-state.saving .save-state-dot, .save-state.unsaved .save-state-dot { background: var(--amber); }
+.save-state.failed .save-state-dot { background: var(--destructive); }
+.command-trigger { font-family: ui-monospace, monospace; }
+.more-button { position: relative; }
+.topbar-menu { position: absolute; right: 12px; top: 50px; z-index: 40; display: flex; flex-direction: column; min-width: 190px; padding: 6px; background: var(--surface-2); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: var(--shadow-overlay); }
+.topbar-menu button, .topbar-menu label { border: 0; background: transparent; color: var(--ink); padding: 9px 10px; text-align: left; border-radius: var(--r-sm); font: inherit; font-size: 12px; cursor: pointer; }
+.topbar-menu button:hover, .topbar-menu label:hover { background: var(--surface-3); color: var(--accent); }
 .project-name:hover { border-color: var(--hairline); }
 .project-name:focus { border-color: var(--accent); background: var(--surface-2); }
 
@@ -315,6 +325,34 @@ button:disabled { cursor: default; }
 .timeline-title {
   font-size: 10.5px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted);
 }
+.timeline-timecode { font: 700 11px ui-monospace, monospace; color: var(--ink); background: var(--surface-2); padding: 5px 8px; border-radius: var(--r-sm); }
+.inspector-tabs { display: flex; gap: 4px; overflow-x: auto; margin: -2px 0 10px; padding-bottom: 4px; }
+.inspector-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ink-muted); padding: 6px 7px; font-size: 10px; font-weight: 800; white-space: nowrap; cursor: pointer; }
+.inspector-tabs button.active { color: var(--accent); border-bottom-color: var(--accent); }
+.inspector-context { color: var(--ink-subtle); font-size: 11px; margin: 0 0 12px; }
+.track-actions { display: flex; gap: 2px; margin-left: auto; }
+.track-action { border: 0; border-radius: 3px; background: transparent; color: var(--ink-subtle); font-size: 9px; font-weight: 800; padding: 2px 3px; cursor: pointer; }
+.track-action:hover, .track-action.active { background: var(--accent-soft); color: var(--accent); }
+.track-hidden { opacity: .38; }
+.clip-meta { position: absolute; right: 5px; bottom: 3px; color: rgba(255,255,255,.7); font-size: 9px; white-space: nowrap; pointer-events: none; }
+.clip-badge { position: absolute; top: 3px; right: 4px; color: var(--amber); font-size: 9px; font-weight: 800; }
+.keyframe-dots { position: absolute; top: 3px; left: 4px; color: var(--violet); font-size: 9px; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(0,0,0,.62); backdrop-filter: blur(8px); }
+.modal { width: min(620px, 100%); background: var(--surface-1); border: 1px solid var(--hairline-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-overlay); padding: 22px; }
+.modal-head, .modal-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.modal h2 { margin: 0 0 4px; font-size: 20px; }
+.modal p { margin: 0 0 18px; }
+.export-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.export-grid label { display: grid; gap: 6px; color: var(--ink-muted); font-size: 11px; font-weight: 800; }
+.export-grid select { width: 100%; }
+.export-estimate { grid-column: 1 / -1; display: grid; gap: 5px; padding: 12px; background: var(--surface-2); border-radius: var(--r-md); font-size: 12px; }
+.modal-actions { justify-content: flex-end; margin-top: 20px; }
+.command-palette { width: min(520px, 100%); }
+.command-list { display: grid; gap: 4px; }
+.command-list button { display: flex; justify-content: space-between; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--ink); padding: 11px 12px; text-align: left; cursor: pointer; }
+.command-list button:hover { background: var(--surface-3); color: var(--accent); }
+.command-list span { color: var(--ink-subtle); font: 10px ui-monospace, monospace; }
+.workspace-dock { position: fixed; right: 16px; bottom: 16px; z-index: 25; display: flex; gap: 6px; }
 .timeline-tools { display: flex; align-items: center; gap: 5px; margin-left: auto; }
 .timeline-tool {
   border: 1px solid var(--hairline-strong); border-radius: var(--r-sm);

@@ -1,6 +1,7 @@
 import type { Clip, Selection, TextOverlay } from '../types';
 import { InfoIcon, ScissorsIcon, TrashIcon } from '../icons';
 import { DEFAULT_FILTER } from '../types';
+import { useState } from 'react';
 
 interface Props {
   selection: Selection;
@@ -34,10 +35,19 @@ export default function Inspector({
   onDeleteSelection,
   onSplit,
 }: Props) {
+  const [activeTab, setActiveTab] = useState<'transform' | 'audio' | 'color' | 'transitions' | 'keyframes' | 'captions'>('transform');
   return (
     <aside className="panel inspector">
       <div className="panel-section">
         <h2 className="panel-title">Inspector</h2>
+        <div className="inspector-tabs" role="tablist" aria-label="Inspector sections">
+          {(['transform', 'audio', 'color', 'transitions', 'keyframes', 'captions'] as const).map((tab) => (
+            <button key={tab} role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? 'active' : ''} onClick={() => setActiveTab(tab)}>
+              {tab[0].toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+        <p className="inspector-context">{activeTab === 'captions' ? 'Caption styling is managed through the imported caption track.' : `Editing ${activeTab} controls for the selected item.`}</p>
 
         {!selection && (
           <div className="empty-state">

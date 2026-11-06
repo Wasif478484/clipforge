@@ -1,6 +1,5 @@
 import type { Aspect } from '../types';
-import { TypeIcon } from '../icons';
-import { Logo } from '../icons';
+import { Logo, TypeIcon } from '../icons';
 import { useState } from 'react';
 import type { StorageDiagnostics } from '../lib/storage';
 import { formatBytes } from '../lib/storage';
@@ -27,162 +26,82 @@ interface Props {
   storageStatus?: StorageDiagnostics | null;
   onImportCaptions?: (file: File) => void;
   onExportCaptions?: (format: 'srt' | 'vtt') => void;
+  saveState?: 'saved' | 'saving' | 'unsaved' | 'failed';
+  onCommandPalette?: () => void;
 }
 
 export type ExportQuality = '720p' | '1080p' | '4K';
 
 export default function TopBar({
-  projectName,
-  onProjectNameChange,
-  aspect,
-  onAspectChange,
-  onExport,
-  onExportMp4,
-  onCancelExport,
-  onAddText,
-  onHome,
-  onUndo,
-  onRedo,
-  onSaveProject,
-  onSaveToRecent,
-  onLoadProject,
-  exportProgress,
-  mp4Busy,
-  canExport,
-  defaultExportFormat = 'webm',
-  storageStatus,
-  onImportCaptions,
-  onExportCaptions,
+  projectName, onProjectNameChange, aspect, onAspectChange, onExport, onExportMp4,
+  onCancelExport, onAddText, onHome, onUndo, onRedo, onSaveProject, onSaveToRecent,
+  onLoadProject, exportProgress, mp4Busy, canExport, defaultExportFormat = 'webm',
+  storageStatus, onImportCaptions, onExportCaptions, saveState = 'saved', onCommandPalette,
 }: Props) {
   const [exportFormat, setExportFormat] = useState<'webm' | 'mp4'>(defaultExportFormat);
   const [quality, setQuality] = useState<ExportQuality>('1080p');
   const [bitrate, setBitrate] = useState(8_000_000);
-
-  const handleExport = () => {
-    if (exportFormat === 'mp4') {
-      onExportMp4(quality, bitrate);
-    } else {
-      onExport(quality, bitrate);
-    }
-  };
-
+  const [showExport, setShowExport] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const exporting = exportProgress !== null || mp4Busy;
+  const statusLabel = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved changes', failed: 'Save failed' }[saveState];
   const storageLabel = storageStatus?.available
     ? `${storageStatus.isLow ? 'Low storage' : 'Storage'} · ${formatBytes(storageStatus.freeBytes)} free`
     : 'Storage unavailable';
 
+  const startExport = () => {
+    setShowExport(false);
+    if (exportFormat === 'mp4') onExportMp4(quality, bitrate);
+    else onExport(quality, bitrate);
+  };
+
   return (
-    <header className="topbar">
-      <div className="brand" title="ClipForge - open-source video editor">
-        <Logo size={24} />
-        Clip<span className="dot">Forge</span>
-      </div>
-
-      {onHome && (
-        <button className="btn ghost small" onClick={onHome} title="Back to home">
-          Home
-        </button>
-      )}
-
-      {storageStatus && (
-        <div
-          className={`storage-indicator ${storageStatus.isLow ? 'warning' : ''}`}
-          title={storageStatus.isLow
-            ? 'Low storage detected. Export and caching may be constrained.'
-            : 'Local storage usage is healthy.'}
-          aria-live="polite"
-        >
-          <span className="storage-dot" />
-          <span>{storageLabel}</span>
+    <>
+      <header className="topbar">
+        <div className="brand" title="ClipForge - open-source video editor"><Logo size={24} />Clip<span className="dot">Forge</span></div>
+        {onHome && <button className="btn ghost small" onClick={onHome}>Home</button>}
+        <div className="project-group">
+          <input className="project-name" value={projectName} onChange={(e) => onProjectNameChange(e.target.value)} aria-label="Project name" spellCheck={false} />
+          <span className={`save-state ${saveState}`} role="status"><span className="save-state-dot" />{statusLabel}</span>
+        </div>
+        <div className="toolbar-group">
+          {onUndo && <button className="btn ghost small" onClick={onUndo} title="Undo (Ctrl+Z)">Undo</button>}
+          {onRedo && <button className="btn ghost small" onClick={onRedo} title="Redo (Ctrl+Shift+Z)">Redo</button>}
+          <button className="btn ghost small" onClick={onAddText}><TypeIcon size={15} />Text</button>
+        </div>
+        {storageStatus && <div className={`storage-indicator ${storageStatus.isLow ? 'warning' : ''}`} title={storageLabel}><span className="storage-dot" /><span>{storageLabel}</span></div>}
+        <div className="spacer" />
+        {onCommandPalette && <button className="btn ghost small command-trigger" onClick={onCommandPalette} title="Open command palette (Ctrl/Cmd+K)">⌘K</button>}
+        <div className="segmented" role="group" aria-label="Aspect ratio">
+          {(['16:9', '9:16', '1:1'] as Aspect[]).map((a) => <button key={a} className={aspect === a ? 'active' : ''} onClick={() => onAspectChange(a)}>{a}</button>)}
+        </div>
+        {exporting && <button className="btn danger small" onClick={onCancelExport}>Cancel</button>}
+        <button className="btn" onClick={() => setShowExport(true)} disabled={!canExport || exporting}>{exporting ? `Exporting… ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export'}</button>
+        <button className="btn ghost small more-button" onClick={() => setShowMore((value) => !value)} aria-expanded={showMore} aria-label="More project actions">•••</button>
+        {showMore && (
+          <div className="topbar-menu">
+            {onSaveProject && <button onClick={onSaveProject}>Save project file</button>}
+            {onSaveToRecent && <button onClick={() => void onSaveToRecent()}>Save to recents</button>}
+            {onLoadProject && <label>Load project<input type="file" accept=".clipforge.json,application/json" hidden onChange={(e) => { if (e.target.files?.[0]) onLoadProject(e.target.files[0]); e.target.value = ''; }} /></label>}
+            {onImportCaptions && <label>Import captions<input type="file" accept=".srt,.vtt,text/vtt,application/x-subrip" hidden onChange={(e) => { if (e.target.files?.[0]) onImportCaptions(e.target.files[0]); e.target.value = ''; }} /></label>}
+            {onExportCaptions && <><button onClick={() => onExportCaptions('srt')}>Export SRT</button><button onClick={() => onExportCaptions('vtt')}>Export VTT</button></>}
+          </div>
+        )}
+      </header>
+      {showExport && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowExport(false); }}>
+          <section className="modal export-dialog" role="dialog" aria-modal="true" aria-labelledby="export-title">
+            <div className="modal-head"><div><h2 id="export-title">Export video</h2><p>Choose a delivery format for your local render.</p></div><button className="btn ghost small" onClick={() => setShowExport(false)}>Close</button></div>
+            <div className="export-grid">
+              <label>Format<select value={exportFormat} onChange={(e) => setExportFormat(e.target.value as 'webm' | 'mp4')}><option value="webm">WebM</option><option value="mp4">MP4</option></select></label>
+              <label>Resolution<select value={quality} onChange={(e) => setQuality(e.target.value as ExportQuality)}><option value="720p">720p</option><option value="1080p">1080p</option><option value="4K">4K</option></select></label>
+              <label>Bitrate<select value={bitrate} onChange={(e) => setBitrate(Number(e.target.value))}><option value={2_000_000}>Low</option><option value={8_000_000}>Medium</option><option value={16_000_000}>High</option></select></label>
+              <div className="export-estimate"><strong>{quality} · {aspect}</strong><span>Estimated output depends on duration, motion, and bitrate.</span><span className="muted-note">Export runs locally on this device.</span></div>
+            </div>
+            <div className="modal-actions"><button className="btn ghost" onClick={() => setShowExport(false)}>Cancel</button><button className="btn" onClick={startExport}>Start export</button></div>
+          </section>
         </div>
       )}
-
-      <div className="toolbar-group">
-        {onUndo && <button className="btn ghost small" onClick={onUndo} title="Undo (Ctrl+Z)">Undo</button>}
-        {onRedo && <button className="btn ghost small" onClick={onRedo} title="Redo (Ctrl+Shift+Z)">Redo</button>}
-      </div>
-
-      {onSaveToRecent && (
-        <button className="btn ghost small" onClick={onSaveToRecent} title="Save to recents (local)">
-          Save to recents
-        </button>
-      )}
-
-      {onSaveProject && (
-        <button className="btn ghost small" onClick={onSaveProject} title="Save project (.clipforge.json)">
-          Save project file
-        </button>
-      )}
-      {onLoadProject && (
-        <label className="btn ghost small" title="Load project (.clipforge.json)" style={{ cursor: 'pointer' }}>
-          Load
-          <input type="file" accept=".clipforge.json,application/json" hidden
-            onChange={(e) => { if (e.target.files?.[0]) onLoadProject(e.target.files[0]); e.target.value = ''; }} />
-        </label>
-      )}
-      {onImportCaptions && (
-        <label className="btn ghost small" title="Import SRT or VTT captions">
-          Captions
-          <input type="file" accept=".srt,.vtt,text/vtt,application/x-subrip" hidden
-            onChange={(e) => { if (e.target.files?.[0]) onImportCaptions(e.target.files[0]); e.target.value = ''; }} />
-        </label>
-      )}
-      {onExportCaptions && (
-        <select className="export-format-select" aria-label="Export captions" defaultValue=""
-          onChange={(e) => { if (e.target.value) onExportCaptions(e.target.value as 'srt' | 'vtt'); e.target.value = ''; }}>
-          <option value="" disabled>Export captions</option>
-          <option value="srt">SRT</option>
-          <option value="vtt">VTT</option>
-        </select>
-      )}
-
-      <input
-        className="project-name"
-        value={projectName}
-        onChange={(e) => onProjectNameChange(e.target.value)}
-        aria-label="Project name"
-        spellCheck={false}
-      />
-
-      <div className="segmented" role="group" aria-label="Aspect ratio">
-        {(['16:9', '9:16', '1:1'] as Aspect[]).map((a) => (
-          <button key={a} className={aspect === a ? 'active' : ''} onClick={() => onAspectChange(a)}>
-            {a}
-          </button>
-        ))}
-      </div>
-
-      <button className="btn ghost small" onClick={onAddText} title="Add a text overlay at the playhead">
-        <TypeIcon size={15} />
-        Text
-      </button>
-
-      <div className="spacer" />
-
-      <select
-        className="export-format-select"
-        value={exportFormat}
-        onChange={(e) => setExportFormat(e.target.value as 'webm' | 'mp4')}
-        aria-label="Export format"
-        title="Export format"
-      >
-        <option value="webm">WebM</option>
-        <option value="mp4">MP4</option>
-      </select>
-      <select className="export-format-select" value={quality} onChange={(e) => setQuality(e.target.value as ExportQuality)} aria-label="Export quality">
-        <option value="720p">720p</option>
-        <option value="1080p">1080p</option>
-        <option value="4K">4K</option>
-      </select>
-      <select className="export-format-select" value={bitrate} onChange={(e) => setBitrate(Number(e.target.value))} aria-label="Export bitrate">
-        <option value={2_000_000}>Low bitrate</option>
-        <option value={8_000_000}>Medium bitrate</option>
-        <option value={16_000_000}>High bitrate</option>
-      </select>
-      {exporting && <button className="btn danger small" onClick={onCancelExport}>Cancel</button>}
-      <button className="btn" onClick={handleExport} disabled={!canExport || exporting}>
-        {exporting ? `Exporting... ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export'}
-      </button>
-    </header>
+    </>
   );
 }

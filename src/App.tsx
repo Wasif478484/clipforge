@@ -29,6 +29,9 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pxPerSec, setPxPerSec] = useState(45);
   const [toast, setToast] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'unsaved' | 'failed'>('saved');
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [collapsedPanels, setCollapsedPanels] = useState({ media: false, inspector: false, timeline: false });
   const [storageStatus, setStorageStatus] = useState<StorageDiagnostics | null>(null);
   const [generatingSample, setGeneratingSample] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
@@ -112,6 +115,9 @@ export default function App() {
       h.present = snap;
     }
   }, [clips, texts, projectName, aspect, snapshot]);
+  useEffect(() => {
+    if (historyRef.current.present) setSaveState('unsaved');
+  }, [clips, texts, projectName, aspect, captions, markers, inPoint, outPoint]);
 
   const assetKindById = useMemo(() => {
     const map: Record<string, MediaKind | undefined> = {};
@@ -174,6 +180,18 @@ export default function App() {
     const id = window.setTimeout(() => setToast(null), 3600);
     return () => window.clearTimeout(id);
   }, [toast]);
+
+  useEffect(() => {
+    const onCommandKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+      if (event.key === 'Escape') setCommandOpen(false);
+    };
+    window.addEventListener('keydown', onCommandKey);
+    return () => window.removeEventListener('keydown', onCommandKey);
+  }, []);
 
   /* ------------------------------------------------ audio graph ------------------------------------------------ */
 
@@ -1006,6 +1024,7 @@ export default function App() {
   }, [showToast]);
 
   const handleSaveProject = useCallback(async () => {
+    setSaveState('saving');
     const { clips: clipList, texts: textList, assets: assetList } = stateRef.current;
     showToast('Packing project file…');
     const stored: Array<{ id: string; name: string; kind: MediaKind; duration: number; width?: number | undefined; height?: number | undefined; mime: string; dataUrl: string }> = [];
@@ -1022,12 +1041,14 @@ export default function App() {
       `This project embeds about ${(totalBytes / 1_000_000).toFixed(0)} MB of media and will produce a large file. Save anyway?`,
     )) {
       showToast('Save cancelled.');
+      setSaveState('unsaved');
       return;
     }
     const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, captions, markers, inPoint, outPoint, assets: stored }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     downloadBlob(blob, `${projectName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'clipforge'}.clipforge.json`);
     showToast('Project saved with embedded media.');
+    setSaveState('saved');
   }, [projectName, aspect, captions, markers, inPoint, outPoint, showToast]);
 
   const handleLoadProject = useCallback((file: File) => {
@@ -1067,6 +1088,7 @@ export default function App() {
             : 'Project loaded.');
         }
       } catch {
+        setSaveState('failed');
         showToast('Could not read project file.');
       }
     };
@@ -1102,6 +1124,7 @@ export default function App() {
   }, [selection?.id]);
 
   const saveToRecent = useCallback(async () => {
+    setSaveState('saving');
     const { clips: clipList, texts: textList, assets } = stateRef.current;
     const name = projectName;
     const asp = aspect;
@@ -1143,9 +1166,11 @@ export default function App() {
         assets: storedAssets,
       };
       await putRecentProject(entry);
+      setSaveState('saved');
       showToast('Saved to dashboard — reopen anytime.');
     } catch (err) {
       console.error(err);
+      setSaveState('failed');
       showToast('Could not save to dashboard.');
     }
   }, [showToast, projectName, aspect, captions, markers, inPoint, outPoint]);
@@ -1567,9 +1592,11 @@ export default function App() {
         storageStatus={storageStatus}
         onImportCaptions={importCaptions}
         onExportCaptions={exportCaptions}
+        saveState={saveState}
+        onCommandPalette={() => setCommandOpen(true)}
       />
-      <main className="workspace">
-        <MediaPanel
+      <main className={`workspace${collapsedPanels.media ? ' media-collapsed' : ''}${collapsedPanels.inspector ? ' inspector-collapsed' : ''}`}>
+        {!collapsedPanels.media && <MediaPanel
           assets={assets}
           onImportFiles={handleImportFiles}
           onGenerateSampleVideo={handleGenerateSampleVideo}
@@ -1577,7 +1604,7 @@ export default function App() {
           onAddToTimeline={handleAddToTimeline}
           onDeleteAsset={handleDeleteAsset}
           generatingSample={generatingSample}
-        />
+        />}
         <Stage
           ref={canvasRef}
           aspect={aspect}
@@ -1588,7 +1615,7 @@ export default function App() {
           onSeekStart={() => seek(0)}
           hasContent={hasContent}
         />
-        <Inspector
+        {!collapsedPanels.inspector && <Inspector
           selection={selection}
           clip={selectedClip}
           text={selectedText}
@@ -1600,9 +1627,9 @@ export default function App() {
           onChangeText={patchText}
           onDeleteSelection={handleDeleteSelection}
           onSplit={handleSplit}
-        />
+        />}
       </main>
-      <Timeline
+      {!collapsedPanels.timeline && <Timeline
         clips={clips}
         texts={[...texts, ...captions.map((caption) => ({ id: caption.id, text: caption.text, x: 0.5, y: 0.86, size: 30, color: 'white', start: caption.start, duration: caption.duration, animation: 'none' as const }))]}
         assetKindById={assetKindById}
@@ -1630,8 +1657,30 @@ export default function App() {
         onSetInPoint={setInPointAtPlayhead}
         onSetOutPoint={setOutPointAtPlayhead}
         onClearRange={() => { setInPoint(null); setOutPoint(null); }}
-      />
+      />}
+      <div className="workspace-dock" aria-label="Workspace panels">
+        <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, media: !p.media }))}>{collapsedPanels.media ? 'Show media' : 'Hide media'}</button>
+        <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, inspector: !p.inspector }))}>{collapsedPanels.inspector ? 'Show inspector' : 'Hide inspector'}</button>
+        <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, timeline: !p.timeline }))}>{collapsedPanels.timeline ? 'Show timeline' : 'Hide timeline'}</button>
+      </div>
       {toast && <div className="toast" role="status">{toast}</div>}
+      {commandOpen && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setCommandOpen(false); }}>
+          <section className="modal command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
+            <h2 id="command-title">Command palette</h2>
+            <p className="muted-note">Searchless quick actions for the editor.</p>
+            <div className="command-list">
+              <button onClick={() => { handleAddText(); setCommandOpen(false); }}>Add text <span>Text</span></button>
+              <button onClick={() => { addMarker(); setCommandOpen(false); }}>Add marker <span>M</span></button>
+              <button onClick={() => { setInPointAtPlayhead(); setCommandOpen(false); }}>Set in point <span>I</span></button>
+              <button onClick={() => { setOutPointAtPlayhead(); setCommandOpen(false); }}>Set out point <span>O</span></button>
+              <button onClick={() => { setSnapEnabled((value) => !value); setCommandOpen(false); }}>Toggle snapping <span>Snap</span></button>
+              <button onClick={() => { void saveToRecent(); setCommandOpen(false); }}>Save to recents <span>Ctrl+S</span></button>
+              <button onClick={() => { setCommandOpen(false); setTimeout(() => document.querySelector<HTMLButtonElement>('.topbar .btn:not(.ghost)')?.click(), 0); }}>Open export <span>Export</span></button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

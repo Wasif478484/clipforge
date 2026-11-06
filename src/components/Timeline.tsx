@@ -81,6 +81,8 @@ export default function Timeline({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const userScrolledRef = useRef(false);
   const [dropTrackId, setDropTrackId] = useState<string | null>(null);
+  const [trackState, setTrackState] = useState<Record<string, { locked: boolean; muted: boolean; hidden: boolean }>>({});
+  const [rippleEnabled, setRippleEnabled] = useState(false);
 
   // Auto-scroll the playhead into view during playback — until the user
   // scrolls manually, which disables it until the next play().
@@ -238,6 +240,9 @@ export default function Timeline({
             ))}
           </span>
         )}
+        <span className="clip-meta">{clip.duration.toFixed(1)}s · {clip.speed.toFixed(2)}× {clip.muted ? '· muted' : ''}</span>
+        {(clip.transitionIn !== 'none' || clip.transitionOut !== 'none') && <span className="clip-badge">transition</span>}
+        {(clip.keyframes?.volume?.length || clip.keyframes?.opacity?.length) ? <span className="keyframe-dots" aria-label="Has keyframes">◆</span> : null}
         <div className="trim right" data-trim="right" />
       </div>
     );
@@ -276,6 +281,9 @@ export default function Timeline({
           <button className={`timeline-tool${snapEnabled ? ' active' : ''}`} onClick={() => onSnapEnabledChange(!snapEnabled)} aria-pressed={snapEnabled} title="Toggle magnetic snapping">
             Snap
           </button>
+          <button className={`timeline-tool${rippleEnabled ? ' active' : ''}`} onClick={() => setRippleEnabled((value) => !value)} aria-pressed={rippleEnabled} title="Toggle ripple editing">
+            Ripple
+          </button>
           <button className="timeline-tool" onClick={onAddMarker} title="Add marker at playhead">Marker</button>
           <button className="timeline-tool" onClick={onSetInPoint} title="Set in point at playhead">I</button>
           <button className="timeline-tool" onClick={onSetOutPoint} title="Set out point at playhead">O</button>
@@ -290,6 +298,7 @@ export default function Timeline({
           />
           <span aria-hidden="true">+</span>
         </div>
+        <output className="timeline-timecode" aria-label="Current playhead time">{formatTick(currentTime)}</output>
       </div>
       <div
         className="timeline-scroll"
@@ -344,9 +353,14 @@ export default function Timeline({
               <div className="track-label" title={track.name}>
                 <TrackIcon kind={track.kind} />
                 <span>{track.name}</span>
+                <div className="track-actions">
+                  <button className={`track-action${trackState[track.id]?.locked ? ' active' : ''}`} onClick={() => setTrackState((s) => ({ ...s, [track.id]: { locked: !s[track.id]?.locked, muted: s[track.id]?.muted ?? false, hidden: s[track.id]?.hidden ?? false } }))} aria-label={`Lock ${track.name}`}>L</button>
+                  <button className={`track-action${trackState[track.id]?.muted ? ' active' : ''}`} onClick={() => setTrackState((s) => ({ ...s, [track.id]: { locked: s[track.id]?.locked ?? false, muted: !s[track.id]?.muted, hidden: s[track.id]?.hidden ?? false } }))} aria-label={`Mute ${track.name}`}>M</button>
+                  <button className={`track-action${trackState[track.id]?.hidden ? ' active' : ''}`} onClick={() => setTrackState((s) => ({ ...s, [track.id]: { locked: s[track.id]?.locked ?? false, muted: s[track.id]?.muted ?? false, hidden: !s[track.id]?.hidden } }))} aria-label={`Hide ${track.name}`}>H</button>
+                </div>
               </div>
               <div
-                className={`track-lane${dropTrackId === track.id ? ' drop-target' : ''}`}
+                className={`track-lane${dropTrackId === track.id ? ' drop-target' : ''}${trackState[track.id]?.hidden ? ' track-hidden' : ''}`}
                 data-track-id={track.id}
                 onDragOver={(e) => {
                   const assetId = e.dataTransfer.types.includes('application/x-clipforge-asset');
