@@ -63,6 +63,15 @@ html, body, #root {
   background: var(--canvas);
 }
 
+.auth-shell { min-height: 100%; display: grid; place-items: center; padding: 24px; background: var(--canvas); }
+.auth-card { width: min(440px, 100%); padding: 28px; background: var(--surface-1); border: 1px solid var(--hairline-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-overlay); }
+.auth-card h1 { margin: 0 0 10px; font-size: 24px; }
+.auth-card p { color: var(--ink-muted); line-height: 1.5; }
+.auth-card form { display: grid; gap: 14px; margin-top: 20px; }
+.auth-card label { display: grid; gap: 6px; color: var(--ink-muted); font-size: 12px; font-weight: 700; }
+.auth-card input { width: 100%; }
+.auth-error { color: var(--destructive) !important; font-size: 12px; }
+
 /* ── Focus & motion hygiene ─────────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--accent);

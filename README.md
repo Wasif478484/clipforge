@@ -67,6 +67,20 @@ npm run build    # type-check + production build → dist/
 npm run preview  # serve the production build locally
 ```
 
+### Configure Supabase Auth
+
+Cloud access is currently sign-in required. Create a Supabase project, enable
+email/password authentication, and copy the project URL and publishable key into
+`.env.local`:
+
+```text
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+```
+
+The same values must be added to the Vercel project for Preview and Production.
+Never add a Supabase service-role key to frontend environment variables.
+
 ## Deploy (Vercel)
 
 ```bash
