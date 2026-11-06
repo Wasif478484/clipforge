@@ -1,4 +1,4 @@
-import type { Aspect, Caption, Clip, MediaKind, TextOverlay, TimelineMarker } from '../types';
+import type { Aspect, Caption, Clip, MediaKind, TextOverlay, TimelineMarker, TrackSettingsMap } from '../types';
 
 export interface ProjectAssetData {
   id: string;
@@ -20,6 +20,7 @@ export interface ProjectData {
   markers?: TimelineMarker[];
   inPoint?: number | null;
   outPoint?: number | null;
+  trackSettings?: TrackSettingsMap;
   assets: ProjectAssetData[];
 }
 
@@ -57,5 +58,5 @@ export function parseProjectData(value: unknown): ProjectData {
     : [];
   const inPoint = data.inPoint == null || (Number.isFinite(data.inPoint) && data.inPoint >= 0) ? data.inPoint ?? null : null;
   const outPoint = data.outPoint == null || (Number.isFinite(data.outPoint) && data.outPoint >= 0) ? data.outPoint ?? null : null;
-  return { version: 2, name: data.name, aspect: data.aspect, clips, texts: data.texts, captions, markers, inPoint, outPoint, assets };
+  return { version: 2, name: data.name, aspect: data.aspect, clips, texts: data.texts, captions, markers, inPoint, outPoint, trackSettings: data.trackSettings ?? {}, assets };
 }

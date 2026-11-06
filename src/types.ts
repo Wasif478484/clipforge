@@ -8,6 +8,14 @@ export interface Track {
   kind: TrackKind;
 }
 
+export interface TrackSettings {
+  locked: boolean;
+  muted: boolean;
+  hidden: boolean;
+}
+
+export type TrackSettingsMap = Record<string, TrackSettings>;
+
 export interface MediaAsset {
   id: string;
   name: string;

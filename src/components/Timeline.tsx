@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent as ReactDragEvent, type PointerEvent as ReactPointerEvent } from 'react';
-import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay, type TimelineMarker } from '../types';
+import { TRACKS, type Clip, type MediaKind, type Selection, type TextOverlay, type TimelineMarker, type TrackSettingsMap } from '../types';
 import { clamp } from '../util';
 import { FilmIcon, MusicIcon, TypeIcon } from '../icons';
 
@@ -31,6 +31,10 @@ interface Props {
   onSetInPoint: () => void;
   onSetOutPoint: () => void;
   onClearRange: () => void;
+  trackSettings: TrackSettingsMap;
+  onTrackSettingsChange: (settings: TrackSettingsMap) => void;
+  rippleEnabled: boolean;
+  onRippleEnabledChange: (enabled: boolean) => void;
 }
 
 type DragState =
@@ -76,13 +80,15 @@ export default function Timeline({
   onSetInPoint,
   onSetOutPoint,
   onClearRange,
+  trackSettings,
+  onTrackSettingsChange,
+  rippleEnabled,
+  onRippleEnabledChange,
 }: Props) {
   const dragRef = useRef<DragState>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const userScrolledRef = useRef(false);
   const [dropTrackId, setDropTrackId] = useState<string | null>(null);
-  const [trackState, setTrackState] = useState<Record<string, { locked: boolean; muted: boolean; hidden: boolean }>>({});
-  const [rippleEnabled, setRippleEnabled] = useState(false);
 
   // Auto-scroll the playhead into view during playback — until the user
   // scrolls manually, which disables it until the next play().
@@ -151,6 +157,8 @@ export default function Timeline({
     const dx = (e.clientX - drag.startClientX) / pxPerSec;
 
     if (drag.kind === 'clip') {
+      const currentClip = clips.find((clip) => clip.id === drag.id);
+      if (currentClip && trackSettings[currentClip.trackId]?.locked) return;
       const o = drag.orig;
       if (drag.mode === 'move') {
         let newStart = snapTime(o.start + dx);
@@ -165,7 +173,7 @@ export default function Timeline({
             track != null && assetKind != null &&
             (assetKind === 'audio' ? track.kind === 'audio' : track.kind === 'video');
           setDropTrackId(compatible ? targetTrackId : null);
-          if (compatible && track && (clip?.trackId ?? '') !== targetTrackId) {
+          if (compatible && track && (clip?.trackId ?? '') !== targetTrackId && !trackSettings[targetTrackId]?.locked) {
             onPatchClip(drag.id, { trackId: targetTrackId });
           }
         } else {
@@ -281,7 +289,7 @@ export default function Timeline({
           <button className={`timeline-tool${snapEnabled ? ' active' : ''}`} onClick={() => onSnapEnabledChange(!snapEnabled)} aria-pressed={snapEnabled} title="Toggle magnetic snapping">
             Snap
           </button>
-          <button className={`timeline-tool${rippleEnabled ? ' active' : ''}`} onClick={() => setRippleEnabled((value) => !value)} aria-pressed={rippleEnabled} title="Toggle ripple editing">
+          <button className={`timeline-tool${rippleEnabled ? ' active' : ''}`} onClick={() => onRippleEnabledChange(!rippleEnabled)} aria-pressed={rippleEnabled} title="Toggle ripple editing">
             Ripple
           </button>
           <button className="timeline-tool" onClick={onAddMarker} title="Add marker at playhead">Marker</button>
@@ -354,13 +362,13 @@ export default function Timeline({
                 <TrackIcon kind={track.kind} />
                 <span>{track.name}</span>
                 <div className="track-actions">
-                  <button className={`track-action${trackState[track.id]?.locked ? ' active' : ''}`} onClick={() => setTrackState((s) => ({ ...s, [track.id]: { locked: !s[track.id]?.locked, muted: s[track.id]?.muted ?? false, hidden: s[track.id]?.hidden ?? false } }))} aria-label={`Lock ${track.name}`}>L</button>
-                  <button className={`track-action${trackState[track.id]?.muted ? ' active' : ''}`} onClick={() => setTrackState((s) => ({ ...s, [track.id]: { locked: s[track.id]?.locked ?? false, muted: !s[track.id]?.muted, hidden: s[track.id]?.hidden ?? false } }))} aria-label={`Mute ${track.name}`}>M</button>
-                  <button className={`track-action${trackState[track.id]?.hidden ? ' active' : ''}`} onClick={() => setTrackState((s) => ({ ...s, [track.id]: { locked: s[track.id]?.locked ?? false, muted: s[track.id]?.muted ?? false, hidden: !s[track.id]?.hidden } }))} aria-label={`Hide ${track.name}`}>H</button>
+                  <button className={`track-action${trackSettings[track.id]?.locked ? ' active' : ''}`} onClick={() => onTrackSettingsChange({ ...trackSettings, [track.id]: { locked: !trackSettings[track.id]?.locked, muted: trackSettings[track.id]?.muted ?? false, hidden: trackSettings[track.id]?.hidden ?? false } })} aria-label={`Lock ${track.name}`}>L</button>
+                  <button className={`track-action${trackSettings[track.id]?.muted ? ' active' : ''}`} onClick={() => onTrackSettingsChange({ ...trackSettings, [track.id]: { locked: trackSettings[track.id]?.locked ?? false, muted: !trackSettings[track.id]?.muted, hidden: trackSettings[track.id]?.hidden ?? false } })} aria-label={`Mute ${track.name}`}>M</button>
+                  <button className={`track-action${trackSettings[track.id]?.hidden ? ' active' : ''}`} onClick={() => onTrackSettingsChange({ ...trackSettings, [track.id]: { locked: trackSettings[track.id]?.locked ?? false, muted: trackSettings[track.id]?.muted ?? false, hidden: !trackSettings[track.id]?.hidden } })} aria-label={`Hide ${track.name}`}>H</button>
                 </div>
               </div>
               <div
-                className={`track-lane${dropTrackId === track.id ? ' drop-target' : ''}${trackState[track.id]?.hidden ? ' track-hidden' : ''}`}
+                className={`track-lane${dropTrackId === track.id ? ' drop-target' : ''}${trackSettings[track.id]?.hidden ? ' track-hidden' : ''}`}
                 data-track-id={track.id}
                 onDragOver={(e) => {
                   const assetId = e.dataTransfer.types.includes('application/x-clipforge-asset');

@@ -12,7 +12,7 @@ import { putRecentProject, type RecentProject } from './lib/recent';
 import { loadSettings } from './lib/settings';
 import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
-import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay, TimelineMarker } from './types';
+import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay, TimelineMarker, TrackSettingsMap } from './types';
 import { CANVAS_SIZE, DEFAULT_FILTER } from './types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
@@ -43,6 +43,8 @@ export default function App() {
   const [inPoint, setInPoint] = useState<number | null>(null);
   const [outPoint, setOutPoint] = useState<number | null>(null);
   const [captions, setCaptions] = useState<Caption[]>([]);
+  const [trackSettings, setTrackSettings] = useState<TrackSettingsMap>({});
+  const [rippleEnabled, setRippleEnabled] = useState(false);
 
   const [mode, setMode] = useState<'home' | 'video' | 'image' | 'dashboard'>('home');
   const [imageSource, setImageSource] = useState<string | null>(null);
@@ -73,7 +75,7 @@ export default function App() {
   const skipHistoryRef = useRef(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const clipboardRef = useRef<Clip[]>([]);
-  const stateRef = useRef({ assets, clips, texts, duration: 0 });
+  const stateRef = useRef({ assets, clips, texts, duration: 0, trackSettings });
 
   const interpolateKeyframes = (frames: { t: number; value: number }[] | undefined, t: number, fallback: number): number => {
     if (!frames?.length) return fallback;
@@ -95,13 +97,13 @@ export default function App() {
   );
   // Keep the shared snapshot outside render — callbacks read it via ref.
   useEffect(() => {
-    stateRef.current = { assets, clips, texts, duration };
+    stateRef.current = { assets, clips, texts, duration, trackSettings };
   });
 
   // Undo/redo history tracking.
   const snapshot = useCallback(() => JSON.stringify({
-    projectName, aspect, clips, texts, captions, markers, inPoint, outPoint,
-  }), [projectName, aspect, clips, texts, captions, markers, inPoint, outPoint]);
+    projectName, aspect, clips, texts, captions, markers, inPoint, outPoint, trackSettings,
+  }), [projectName, aspect, clips, texts, captions, markers, inPoint, outPoint, trackSettings]);
 
   useEffect(() => {
     if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
@@ -255,7 +257,7 @@ export default function App() {
       const gain = gainByClip.current.get(clip.id);
       if (!gain) continue;
       const active = t >= clip.start && t < clip.start + clip.duration;
-      let vol = active && !clip.muted ? clip.volume : 0;
+      let vol = active && !clip.muted && !stateRef.current.trackSettings[clip.trackId]?.muted ? clip.volume : 0;
       if (active && !clip.muted) {
         const elapsed = t - clip.start;
         const remaining = clip.start + clip.duration - t;
@@ -328,7 +330,7 @@ export default function App() {
 
     for (const trackId of ['v1', 'v2']) {
       const active = clipList
-        .filter((c) => c.trackId === trackId && t >= c.start && t < c.start + c.duration)
+        .filter((c) => c.trackId === trackId && !stateRef.current.trackSettings[c.trackId]?.hidden && t >= c.start && t < c.start + c.duration)
         .sort((a, b) => a.start - b.start);
       const drawn = new Set<string>();
       for (const clip of active) {
@@ -700,6 +702,8 @@ export default function App() {
     setMarkers([]);
     setInPoint(null);
     setOutPoint(null);
+    setTrackSettings({});
+    setRippleEnabled(false);
     setSelection(null);
     setWaveforms({});
     setProjectName('Untitled project');
@@ -892,11 +896,18 @@ export default function App() {
     setSelection((sel) => {
       if (sel?.type === 'clip') ids.add(sel.id);
       if (ids.size > 0) {
+        const removed = stateRef.current.clips.filter((clip) => ids.has(clip.id) && !trackSettings[clip.trackId]?.locked);
         setClips((prev) => prev.filter((c) => {
-          if (!ids.has(c.id)) return true;
+          if (!ids.has(c.id) || trackSettings[c.trackId]?.locked) return true;
           const gain = gainByClip.current.get(c.id);
           if (gain) { try { gain.disconnect(); } catch { /* noop */ } gainByClip.current.delete(c.id); }
           return false;
+        }).map((clip) => {
+          if (!rippleEnabled) return clip;
+          const shift = removed
+            .filter((item) => item.trackId === clip.trackId && item.start < clip.start)
+            .reduce((total, item) => total + item.duration, 0);
+          return shift > 0 ? { ...clip, start: Math.max(0, clip.start - shift) } : clip;
         }));
         if (sel?.type === 'text') setTexts((prev) => prev.filter((t) => t.id !== sel.id));
         return null;
@@ -908,7 +919,7 @@ export default function App() {
       return null;
     });
     setSelectedIds([]);
-  }, [selectedIds]);
+  }, [selectedIds, rippleEnabled, trackSettings]);
 
   const handleSelect = useCallback((sel: Selection, shiftKey?: boolean) => {
     setSelection(sel);
@@ -991,7 +1002,7 @@ export default function App() {
     h.past = h.past.slice(0, -1);
     h.future = [h.present, ...h.future];
     h.present = prev;
-    const s = JSON.parse(prev) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null };
+    const s = JSON.parse(prev) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null; trackSettings?: TrackSettingsMap };
     setProjectName(s.projectName);
     setAspect(s.aspect);
     setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
@@ -1000,6 +1011,7 @@ export default function App() {
     setMarkers(s.markers ?? []);
     setInPoint(s.inPoint ?? null);
     setOutPoint(s.outPoint ?? null);
+    setTrackSettings(s.trackSettings ?? {});
     showToast('Undo');
   }, [showToast]);
 
@@ -1011,7 +1023,7 @@ export default function App() {
     h.future = h.future.slice(1);
     h.past = [...h.past, h.present];
     h.present = next;
-    const s = JSON.parse(next) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null };
+    const s = JSON.parse(next) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null; trackSettings?: TrackSettingsMap };
     setProjectName(s.projectName);
     setAspect(s.aspect);
     setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
@@ -1020,6 +1032,7 @@ export default function App() {
     setMarkers(s.markers ?? []);
     setInPoint(s.inPoint ?? null);
     setOutPoint(s.outPoint ?? null);
+    setTrackSettings(s.trackSettings ?? {});
     showToast('Redo');
   }, [showToast]);
 
@@ -1044,12 +1057,12 @@ export default function App() {
       setSaveState('unsaved');
       return;
     }
-    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, captions, markers, inPoint, outPoint, assets: stored }, null, 2);
+    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, captions, markers, inPoint, outPoint, trackSettings, assets: stored }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     downloadBlob(blob, `${projectName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'clipforge'}.clipforge.json`);
     showToast('Project saved with embedded media.');
     setSaveState('saved');
-  }, [projectName, aspect, captions, markers, inPoint, outPoint, showToast]);
+  }, [projectName, aspect, captions, markers, inPoint, outPoint, trackSettings, showToast]);
 
   const handleLoadProject = useCallback((file: File) => {
     const reader = new FileReader();
@@ -1065,6 +1078,7 @@ export default function App() {
         setMarkers(data.markers ?? []);
         setInPoint(data.inPoint ?? null);
         setOutPoint(data.outPoint ?? null);
+        setTrackSettings(data.trackSettings ?? {});
         setClips(newClips);
         const embedded = data.assets.filter((a) => typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:'));
         const missing = newClips.filter((c) => !embedded.some((a) => a.id === c.assetId)).length;
@@ -1162,7 +1176,7 @@ export default function App() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         thumbnail,
-        videoJson: JSON.stringify({ version: 2, name, aspect: asp, clips: clipList, texts: textList, captions, markers, inPoint, outPoint }),
+        videoJson: JSON.stringify({ version: 2, name, aspect: asp, clips: clipList, texts: textList, captions, markers, inPoint, outPoint, trackSettings }),
         assets: storedAssets,
       };
       await putRecentProject(entry);
@@ -1173,12 +1187,12 @@ export default function App() {
       setSaveState('failed');
       showToast('Could not save to dashboard.');
     }
-  }, [showToast, projectName, aspect, captions, markers, inPoint, outPoint]);
+  }, [showToast, projectName, aspect, captions, markers, inPoint, outPoint, trackSettings]);
 
   const openRecent = useCallback(async (entry: RecentProject) => {
     if (entry.kind === 'video' && entry.videoJson) {
       try {
-        const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null };
+        const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null; trackSettings?: TrackSettingsMap };
         resetProject();
         setProjectName(parsed.name);
         setAspect(parsed.aspect);
@@ -1189,6 +1203,7 @@ export default function App() {
         setMarkers(parsed.markers ?? []);
         setInPoint(parsed.inPoint ?? null);
         setOutPoint(parsed.outPoint ?? null);
+        setTrackSettings(parsed.trackSettings ?? {});
         setCurrentTime(0);
         const hydratedAssets: MediaAsset[] = [];
         const newMediaEls: Array<[string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement]> = [];
@@ -1657,6 +1672,10 @@ export default function App() {
         onSetInPoint={setInPointAtPlayhead}
         onSetOutPoint={setOutPointAtPlayhead}
         onClearRange={() => { setInPoint(null); setOutPoint(null); }}
+        trackSettings={trackSettings}
+        onTrackSettingsChange={setTrackSettings}
+        rippleEnabled={rippleEnabled}
+        onRippleEnabledChange={setRippleEnabled}
       />}
       <div className="workspace-dock" aria-label="Workspace panels">
         <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, media: !p.media }))}>{collapsedPanels.media ? 'Show media' : 'Hide media'}</button>

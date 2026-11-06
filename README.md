@@ -84,6 +84,7 @@ npx vercel --prod # production
 - [x] Responsive layout, accessibility improvements, and local smoke tests
 - [x] Storage diagnostics and low-storage warnings
 - [x] Timeline snapping, markers, and in/out points
+- [x] Persisted track lock, mute, and visibility controls with ripple deletion
 - [x] SRT/VTT caption import, preview, project save/load, and export
 - [x] Offline shell, installable web manifest, and service-worker caching
 - [x] Electron IPC file handlers and menu action events
@@ -92,6 +93,10 @@ npx vercel --prod # production
 - [ ] Captions (Whisper WASM) and auto-subtitles
 - [ ] Audio denoise (RNNoise) and background matting (MediaPipe)
 - [ ] Collaboration (Yjs CRDT)
+
+Online rendering, collaboration, transcription, and denoise require a separate
+authenticated service deployment; the static Vercel app intentionally remains
+local-first and does not simulate completion of those operations.
 
 ## Performance and privacy
 
