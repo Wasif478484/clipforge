@@ -18,16 +18,12 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { parseProjectData } from './lib/project';
 import { getStorageDiagnostics, type StorageDiagnostics } from './lib/storage';
+import { useEditorStore } from './store/editorStore';
 
 export default function App() {
-  const [assets, setAssets] = useState<MediaAsset[]>([]);
-  const [clips, setClips] = useState<Clip[]>([]);
-  const [texts, setTexts] = useState<TextOverlay[]>([]);
-  const [projectName, setProjectName] = useState('Untitled project');
-  const [aspect, setAspect] = useState<Aspect>(() => loadSettings().defaultAspect);
+  const { assets, clips, texts, projectName, aspect, selection, setAssets, setClips, setTexts, setProjectName, setAspect, setSelection } = useEditorStore();
   const [currentTime, setCurrentTime] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [selection, setSelection] = useState<Selection>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pxPerSec, setPxPerSec] = useState(45);
   const [toast, setToast] = useState<string | null>(null);
