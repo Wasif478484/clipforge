@@ -12,6 +12,7 @@ import initTerminal from './kit/terminal-run';
 import './kit/base.css';
 import './kit/terminal-run.css';
 import './landing.css';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const HeroScene = lazy(() => import('./hero-scene/HeroScene'));
 
@@ -71,7 +72,9 @@ export default function LandingPage({ onLaunchEditor, onOpenProjects }: Props) {
         {/* ── Hero — collage ──────────────────────────────────────────── */}
         <section className="section hero" aria-labelledby="hero-h">
           <Suspense fallback={null}>
-            <HeroScene paused={fxPaused} />
+            <ErrorBoundary fallback={null}>
+              <HeroScene paused={fxPaused} />
+            </ErrorBoundary>
           </Suspense>
           <div className="wrap">
             <div className="hero-text grid">

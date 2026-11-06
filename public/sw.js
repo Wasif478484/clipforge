@@ -1,4 +1,4 @@
-const CACHE_NAME = 'clipforge-shell-v1';
+const CACHE_NAME = 'clipforge-shell-v2';
 const SHELL = ['./', './index.html', './favicon.svg', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -15,6 +15,20 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const requestUrl = new URL(event.request.url);
+  const isNavigation = event.request.mode === 'navigate' || requestUrl.pathname.endsWith('.html');
+  if (isNavigation) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone();
+          void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached ?? caches.match('./index.html'))),
+    );
+    return;
+  }
   event.respondWith(
     caches.match(event.request).then((cached) => cached ?? fetch(event.request).then((response) => {
       if (new URL(event.request.url).origin === self.location.origin) {
