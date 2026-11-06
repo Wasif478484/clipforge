@@ -510,11 +510,11 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
     try {
       const { ImageSegmenter, FilesetResolver } = await import('@mediapipe/tasks-vision');
       const vision = await FilesetResolver.forVisionTasks(
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm',
+        `${import.meta.env.BASE_URL}wasm`,
       );
       const segmenter = await ImageSegmenter.createFromOptions(vision, {
         baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+          modelAssetPath: `${import.meta.env.BASE_URL}models/selfie_segmenter.tflite`,
           delegate: 'GPU',
         },
         runningMode: 'IMAGE',

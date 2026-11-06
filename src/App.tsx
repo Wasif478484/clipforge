@@ -1301,7 +1301,7 @@ export default function App() {
       if (!ffmpegRef.current) {
         const ffmpeg = new FFmpeg();
         ffmpegRef.current = ffmpeg;
-        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/esm';
+        const baseURL = `${window.location.origin}${import.meta.env.BASE_URL}ffmpeg`;
         await ffmpeg.load({
           coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
           wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
