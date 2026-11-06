@@ -85,6 +85,13 @@ export interface TimelineMarker {
   color?: string;
 }
 
+export interface Caption {
+  id: string;
+  text: string;
+  start: number;
+  duration: number;
+}
+
 export type Selection = { type: 'clip' | 'text'; id: string } | null;
 
 export const TRACKS: Track[] = [

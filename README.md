@@ -84,6 +84,7 @@ npx vercel --prod # production
 - [x] Responsive layout, accessibility improvements, and local smoke tests
 - [x] Storage diagnostics and low-storage warnings
 - [x] Timeline snapping, markers, and in/out points
+- [x] SRT/VTT caption import, preview, project save/load, and export
 - [ ] Extract the remaining editor callbacks into focused hooks and migrate all App state to the editor store
 - [ ] Server-side render option for faster exports (headless FFmpeg)
 - [ ] Captions (Whisper WASM) and auto-subtitles

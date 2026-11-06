@@ -1,4 +1,4 @@
-import type { Aspect, Clip, MediaKind, TextOverlay } from '../types';
+import type { Aspect, Caption, Clip, MediaKind, TextOverlay } from '../types';
 
 export interface ProjectAssetData {
   id: string;
@@ -16,6 +16,7 @@ export interface ProjectData {
   aspect: Aspect;
   clips: Clip[];
   texts: TextOverlay[];
+  captions?: Caption[];
   assets: ProjectAssetData[];
 }
 
@@ -39,5 +40,11 @@ export function parseProjectData(value: unknown): ProjectData {
     Boolean(clip && typeof clip.id === 'string' && typeof clip.assetId === 'string' && assetIds.has(clip.assetId) &&
       typeof clip.trackId === 'string' && Number.isFinite(clip.start) && Number.isFinite(clip.duration)),
   );
-  return { version: 2, name: data.name, aspect: data.aspect, clips, texts: data.texts, assets };
+  const captions = Array.isArray(data.captions)
+    ? data.captions.filter((caption): caption is Caption => Boolean(
+      caption && typeof caption.id === 'string' && typeof caption.text === 'string' &&
+      Number.isFinite(caption.start) && Number.isFinite(caption.duration) && caption.duration > 0,
+    ))
+    : [];
+  return { version: 2, name: data.name, aspect: data.aspect, clips, texts: data.texts, captions, assets };
 }

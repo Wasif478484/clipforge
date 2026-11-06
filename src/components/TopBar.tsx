@@ -25,6 +25,8 @@ interface Props {
   canExport: boolean;
   defaultExportFormat?: 'webm' | 'mp4';
   storageStatus?: StorageDiagnostics | null;
+  onImportCaptions?: (file: File) => void;
+  onExportCaptions?: (format: 'srt' | 'vtt') => void;
 }
 
 export type ExportQuality = '720p' | '1080p' | '4K';
@@ -49,6 +51,8 @@ export default function TopBar({
   canExport,
   defaultExportFormat = 'webm',
   storageStatus,
+  onImportCaptions,
+  onExportCaptions,
 }: Props) {
   const [exportFormat, setExportFormat] = useState<'webm' | 'mp4'>(defaultExportFormat);
   const [quality, setQuality] = useState<ExportQuality>('1080p');
@@ -115,6 +119,21 @@ export default function TopBar({
           <input type="file" accept=".clipforge.json,application/json" hidden
             onChange={(e) => { if (e.target.files?.[0]) onLoadProject(e.target.files[0]); e.target.value = ''; }} />
         </label>
+      )}
+      {onImportCaptions && (
+        <label className="btn ghost small" title="Import SRT or VTT captions">
+          Captions
+          <input type="file" accept=".srt,.vtt,text/vtt,application/x-subrip" hidden
+            onChange={(e) => { if (e.target.files?.[0]) onImportCaptions(e.target.files[0]); e.target.value = ''; }} />
+        </label>
+      )}
+      {onExportCaptions && (
+        <select className="export-format-select" aria-label="Export captions" defaultValue=""
+          onChange={(e) => { if (e.target.value) onExportCaptions(e.target.value as 'srt' | 'vtt'); e.target.value = ''; }}>
+          <option value="" disabled>Export captions</option>
+          <option value="srt">SRT</option>
+          <option value="vtt">VTT</option>
+        </select>
       )}
 
       <input

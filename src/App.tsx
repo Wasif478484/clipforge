@@ -19,6 +19,8 @@ import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { parseProjectData } from './lib/project';
 import { getStorageDiagnostics, type StorageDiagnostics } from './lib/storage';
 import { useEditorStore } from './store/editorStore';
+import { parseCaptions, serializeCaptions } from './lib/captions';
+import type { Caption } from './types';
 
 export default function App() {
   const { assets, clips, texts, projectName, aspect, selection, setAssets, setClips, setTexts, setProjectName, setAspect, setSelection } = useEditorStore();
@@ -37,6 +39,7 @@ export default function App() {
   const [markers, setMarkers] = useState<TimelineMarker[]>([]);
   const [inPoint, setInPoint] = useState<number | null>(null);
   const [outPoint, setOutPoint] = useState<number | null>(null);
+  const [captions, setCaptions] = useState<Caption[]>([]);
 
   const [mode, setMode] = useState<'home' | 'video' | 'image' | 'dashboard'>('home');
   const [imageSource, setImageSource] = useState<string | null>(null);
@@ -497,7 +500,24 @@ export default function App() {
       });
       ctx.restore();
     }
-  }, []);
+    for (const caption of captions) {
+      if (t < caption.start || t >= caption.start + caption.duration) continue;
+      const scale = H / 720;
+      const lines = caption.text.split('\n');
+      ctx.save();
+      ctx.font = `700 ${Math.max(18, 30 * scale)}px Inter, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const lineHeight = 38 * scale;
+      const boxWidth = Math.min(W * 0.88, Math.max(...lines.map((line) => ctx.measureText(line).width)) + 36 * scale);
+      const boxHeight = lines.length * lineHeight + 20 * scale;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+      ctx.fillRect((W - boxWidth) / 2, H - boxHeight - 36 * scale, boxWidth, boxHeight);
+      ctx.fillStyle = '#fff';
+      lines.forEach((line, index) => ctx.fillText(line, W / 2, H - boxHeight / 2 - 36 * scale + index * lineHeight));
+      ctx.restore();
+    }
+  }, [captions]);
 
   const syncPlayback = useCallback((t: number, isPlaying: boolean) => {
     for (const clip of stateRef.current.clips) {
@@ -992,11 +1012,11 @@ export default function App() {
       showToast('Save cancelled.');
       return;
     }
-    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, assets: stored }, null, 2);
+    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, captions, assets: stored }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     downloadBlob(blob, `${projectName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'clipforge'}.clipforge.json`);
     showToast('Project saved with embedded media.');
-  }, [projectName, aspect, showToast]);
+  }, [projectName, aspect, captions, showToast]);
 
   const handleLoadProject = useCallback((file: File) => {
     const reader = new FileReader();
@@ -1008,6 +1028,7 @@ export default function App() {
         setAspect(data.aspect);
         const newClips = data.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } }));
         setTexts(data.texts);
+        setCaptions(data.captions ?? []);
         setClips(newClips);
         const embedded = data.assets.filter((a) => typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:'));
         const missing = newClips.filter((c) => !embedded.some((a) => a.id === c.assetId)).length;
@@ -1423,6 +1444,28 @@ export default function App() {
   }, []);
 
   const hasContent = clips.length + texts.length > 0;
+  const importCaptions = useCallback((file: File) => {
+    void file.text().then((text) => {
+      const imported = parseCaptions(text);
+      if (imported.length === 0) {
+        showToast('No valid SRT/VTT captions were found.');
+        return;
+      }
+      setCaptions(imported);
+      showToast(`Imported ${imported.length} caption${imported.length === 1 ? '' : 's'}.`);
+    }).catch((error) => {
+      console.error(error);
+      showToast('Could not read the caption file.');
+    });
+  }, [showToast]);
+  const exportCaptions = useCallback((format: 'srt' | 'vtt') => {
+    if (captions.length === 0) {
+      showToast('There are no captions to export.');
+      return;
+    }
+    downloadBlob(new Blob([serializeCaptions(captions, format)], { type: 'text/plain;charset=utf-8' }), `${projectName || 'clipforge'}.${format}`);
+    showToast(`Exported ${format.toUpperCase()} captions.`);
+  }, [captions, projectName, showToast]);
   const addMarker = useCallback(() => {
     setMarkers((previous) => [...previous, { id: uid(), time: currentTimeRef.current, label: `M${previous.length + 1}` }].sort((a, b) => a.time - b.time));
   }, []);
@@ -1494,6 +1537,8 @@ export default function App() {
         canExport={duration > 0}
         defaultExportFormat={loadSettings().defaultExportFormat}
         storageStatus={storageStatus}
+        onImportCaptions={importCaptions}
+        onExportCaptions={exportCaptions}
       />
       <main className="workspace">
         <MediaPanel
@@ -1531,7 +1576,7 @@ export default function App() {
       </main>
       <Timeline
         clips={clips}
-        texts={texts}
+        texts={[...texts, ...captions.map((caption) => ({ id: caption.id, text: caption.text, x: 0.5, y: 0.86, size: 30, color: 'white', start: caption.start, duration: caption.duration, animation: 'none' as const }))]}
         assetKindById={assetKindById}
         waveforms={waveforms}
         thumbs={thumbs}
