@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import {
   clearRecentProjects,
   deleteRecentProject,
@@ -99,6 +99,16 @@ export default function Dashboard({
   const [query, setQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [settings, setSettingsState] = useState<ClipForgeSettings>(() => loadSettings());
+  const heroRef = useRef<HTMLElement | null>(null);
+  const [heroVisible, setHeroVisible] = useState(true);
+
+  useEffect(() => {
+    const hero = heroRef.current;
+    if (!hero || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(([entry]) => setHeroVisible(entry.isIntersecting), { threshold: 0.01 });
+    observer.observe(hero);
+    return () => observer.disconnect();
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -163,11 +173,11 @@ export default function Dashboard({
       {/* ── Main ────────────────────────────────────────────────────────── */}
       <main className="studio-main">
         {/* Header row */}
-        <header className="studio-header" style={{ position: 'relative', overflow: 'hidden' }}>
+        <header ref={heroRef} className="studio-header" style={{ position: 'relative', overflow: 'hidden' }}>
           <Suspense
             fallback={<div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'var(--canvas)' }} />}
           >
-            <HeroScene />
+            <HeroScene paused={!heroVisible} />
           </Suspense>
           <div className="studio-hero-row" style={{ position: 'relative', zIndex: 1 }}>
             <div className="studio-hero-copy">
