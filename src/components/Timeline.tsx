@@ -200,7 +200,7 @@ export default function Timeline({
         {thumbs[clip.assetId] && <span className="clip-thumb" style={{ backgroundImage: `url(${thumbs[clip.assetId]})` }} aria-hidden="true" />}
         <div className="trim left" data-trim="left" />
         <span className="clip-name">{clip.name}</span>
-        {kind === 'audio' && waveforms[clip.assetId] && (
+        {(kind === 'audio' || kind === 'video') && waveforms[clip.assetId] && (
           <span className="waveform" aria-hidden="true">
             {waveforms[clip.assetId].map((p, i) => (
               <span key={i} className="wave-bar" style={{ height: `${Math.max(2, p * 100)}%` }} />

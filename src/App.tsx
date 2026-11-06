@@ -107,9 +107,9 @@ export default function App() {
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
-  // Decode audio waveforms for audio assets.
+  // Decode audio waveforms for assets that may contain an audio track.
   useEffect(() => {
-    const audioAssets = assets.filter((a) => a.kind === 'audio');
+    const audioAssets = assets.filter((a) => a.kind === 'audio' || a.kind === 'video');
     if (audioAssets.length === 0) return;
     let cancelled = false;
     const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
@@ -142,7 +142,7 @@ export default function App() {
       await ctx.close();
     })();
     return () => { cancelled = true; };
-  }, [assets]);
+  }, [assets, waveforms]);
 
   useEffect(() => {
     if (!toast) return;
