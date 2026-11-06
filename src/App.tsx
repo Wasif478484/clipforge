@@ -48,6 +48,9 @@ export default function App() {
   const gainByClip = useRef(new Map<string, GainNode>());
   const exportRecorderRef = useRef<MediaRecorder | null>(null);
   const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastUiTimeRef = useRef(-1);
+  const filterCacheRef = useRef(new Map<string, string>());
+  const warnedBlurRef = useRef(new Set<string>());
 
   const rafRef = useRef(0);
   const startStampRef = useRef(0);
@@ -247,6 +250,15 @@ export default function App() {
     applyGains(currentTimeRef.current);
   }, [clips, assets, syncAudioGraph, applyGains]);
 
+  useEffect(() => {
+    for (const clip of clips) {
+      if (clip.filter.blur > 2 && !warnedBlurRef.current.has(clip.id)) {
+        warnedBlurRef.current.add(clip.id);
+        showToast('Blur above 2px may reduce preview and export performance.');
+      }
+    }
+  }, [clips, showToast]);
+
   /* ------------------------------------------------ rendering ------------------------------------------------ */
 
   const drawFrame = useCallback((t: number) => {
@@ -269,7 +281,13 @@ export default function App() {
       const scale = fit === 'cover' ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
       const dw = iw * scale;
       const dh = ih * scale;
-      ctx.filter = `brightness(${filter.brightness}) contrast(${filter.contrast}) saturate(${filter.saturation}) hue-rotate(${filter.hue}deg) blur(${filter.blur}px) sepia(${filter.sepia}) grayscale(${filter.grayscale})`;
+      const filterKey = `${filter.brightness}|${filter.contrast}|${filter.saturation}|${filter.hue}|${filter.blur}|${filter.sepia}|${filter.grayscale}`;
+      let filterValue = filterCacheRef.current.get(filterKey);
+      if (!filterValue) {
+        filterValue = `brightness(${filter.brightness}) contrast(${filter.contrast}) saturate(${filter.saturation}) hue-rotate(${filter.hue}deg) blur(${filter.blur}px) sepia(${filter.sepia}) grayscale(${filter.grayscale})`;
+        filterCacheRef.current.set(filterKey, filterValue);
+      }
+      ctx.filter = filterValue;
       ctx.drawImage(el, (W - dw) / 2 + dx, (H - dh) / 2, dw, dh);
       ctx.filter = 'none';
     };
@@ -521,7 +539,10 @@ export default function App() {
     const elapsed = (performance.now() - startStampRef.current) / 1000;
     const t = Math.min(startOffsetRef.current + elapsed, dur);
     currentTimeRef.current = t;
-    setCurrentTime(t);
+    if (t >= dur || t - lastUiTimeRef.current >= 0.1) {
+      lastUiTimeRef.current = t;
+      setCurrentTime(t);
+    }
     drawAndSync(t, true);
     if (exportDestRef.current && dur > 0) {
       setExportProgress((prev) => {
