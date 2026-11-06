@@ -97,8 +97,8 @@ export default function App() {
 
   // Undo/redo history tracking.
   const snapshot = useCallback(() => JSON.stringify({
-    projectName, aspect, clips, texts,
-  }), [projectName, aspect, clips, texts]);
+    projectName, aspect, clips, texts, captions, markers, inPoint, outPoint,
+  }), [projectName, aspect, clips, texts, captions, markers, inPoint, outPoint]);
 
   useEffect(() => {
     if (skipHistoryRef.current) { skipHistoryRef.current = false; return; }
@@ -678,6 +678,10 @@ export default function App() {
     setAssets([]);
     setClips([]);
     setTexts([]);
+    setCaptions([]);
+    setMarkers([]);
+    setInPoint(null);
+    setOutPoint(null);
     setSelection(null);
     setWaveforms({});
     setProjectName('Untitled project');
@@ -969,11 +973,15 @@ export default function App() {
     h.past = h.past.slice(0, -1);
     h.future = [h.present, ...h.future];
     h.present = prev;
-    const s = JSON.parse(prev) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+    const s = JSON.parse(prev) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null };
     setProjectName(s.projectName);
     setAspect(s.aspect);
     setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
     setTexts(s.texts);
+    setCaptions(s.captions ?? []);
+    setMarkers(s.markers ?? []);
+    setInPoint(s.inPoint ?? null);
+    setOutPoint(s.outPoint ?? null);
     showToast('Undo');
   }, [showToast]);
 
@@ -985,11 +993,15 @@ export default function App() {
     h.future = h.future.slice(1);
     h.past = [...h.past, h.present];
     h.present = next;
-    const s = JSON.parse(next) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+    const s = JSON.parse(next) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null };
     setProjectName(s.projectName);
     setAspect(s.aspect);
     setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
     setTexts(s.texts);
+    setCaptions(s.captions ?? []);
+    setMarkers(s.markers ?? []);
+    setInPoint(s.inPoint ?? null);
+    setOutPoint(s.outPoint ?? null);
     showToast('Redo');
   }, [showToast]);
 
@@ -1012,11 +1024,11 @@ export default function App() {
       showToast('Save cancelled.');
       return;
     }
-    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, captions, assets: stored }, null, 2);
+    const data = JSON.stringify({ version: 2, name: projectName, aspect, clips: clipList, texts: textList, captions, markers, inPoint, outPoint, assets: stored }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     downloadBlob(blob, `${projectName.trim().replace(/[\\/:*?"<>|]+/g, '-') || 'clipforge'}.clipforge.json`);
     showToast('Project saved with embedded media.');
-  }, [projectName, aspect, captions, showToast]);
+  }, [projectName, aspect, captions, markers, inPoint, outPoint, showToast]);
 
   const handleLoadProject = useCallback((file: File) => {
     const reader = new FileReader();
@@ -1029,6 +1041,9 @@ export default function App() {
         const newClips = data.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } }));
         setTexts(data.texts);
         setCaptions(data.captions ?? []);
+        setMarkers(data.markers ?? []);
+        setInPoint(data.inPoint ?? null);
+        setOutPoint(data.outPoint ?? null);
         setClips(newClips);
         const embedded = data.assets.filter((a) => typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:'));
         const missing = newClips.filter((c) => !embedded.some((a) => a.id === c.assetId)).length;
@@ -1124,7 +1139,7 @@ export default function App() {
         createdAt: Date.now(),
         updatedAt: Date.now(),
         thumbnail,
-        videoJson: JSON.stringify({ version: 1, name, aspect: asp, clips: clipList, texts: textList }),
+        videoJson: JSON.stringify({ version: 2, name, aspect: asp, clips: clipList, texts: textList, captions, markers, inPoint, outPoint }),
         assets: storedAssets,
       };
       await putRecentProject(entry);
@@ -1133,18 +1148,22 @@ export default function App() {
       console.error(err);
       showToast('Could not save to dashboard.');
     }
-  }, [showToast, projectName, aspect]);
+  }, [showToast, projectName, aspect, captions, markers, inPoint, outPoint]);
 
   const openRecent = useCallback(async (entry: RecentProject) => {
     if (entry.kind === 'video' && entry.videoJson) {
       try {
-        const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[] };
+        const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null };
         resetProject();
         setProjectName(parsed.name);
         setAspect(parsed.aspect);
         // historyRef was cleared by resetProject; re-seed with the loaded project
         historyRef.current = { past: [], present: JSON.stringify({ projectName: parsed.name, aspect: parsed.aspect, clips: parsed.clips, texts: parsed.texts }), future: [] };
         setSelection(null);
+        setCaptions(parsed.captions ?? []);
+        setMarkers(parsed.markers ?? []);
+        setInPoint(parsed.inPoint ?? null);
+        setOutPoint(parsed.outPoint ?? null);
         setCurrentTime(0);
         const hydratedAssets: MediaAsset[] = [];
         const newMediaEls: Array<[string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement]> = [];
@@ -1442,6 +1461,15 @@ export default function App() {
     })();
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = window.clipforge?.onMenuAction((action) => {
+      if (action === 'save-project') void handleSaveProject();
+      if (action === 'open-project') showToast('Use Load in the top bar to choose a project file.');
+      if (action === 'import-media') showToast('Use Import in the media panel to choose media files.');
+    });
+    return () => unsubscribe?.();
+  }, [handleSaveProject, showToast]);
 
   const hasContent = clips.length + texts.length > 0;
   const importCaptions = useCallback((file: File) => {

@@ -85,6 +85,8 @@ npx vercel --prod # production
 - [x] Storage diagnostics and low-storage warnings
 - [x] Timeline snapping, markers, and in/out points
 - [x] SRT/VTT caption import, preview, project save/load, and export
+- [x] Offline shell, installable web manifest, and service-worker caching
+- [x] Electron IPC file handlers and menu action events
 - [ ] Extract the remaining editor callbacks into focused hooks and migrate all App state to the editor store
 - [ ] Server-side render option for faster exports (headless FFmpeg)
 - [ ] Captions (Whisper WASM) and auto-subtitles

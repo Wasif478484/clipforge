@@ -41,18 +41,6 @@ function createWindow() {
       event.preventDefault();
       openExternal(url);
     }
-
-    ipcMain.handle('clipforge:open-file', async (_event, filters) => {
-      const result = await dialog.showOpenDialog({ properties: ['openFile'], filters });
-      return result.canceled ? null : result.filePaths[0] ?? null;
-    });
-
-    ipcMain.handle('clipforge:save-file', async (_event, options) => {
-      const result = await dialog.showSaveDialog(options);
-      return result.canceled ? null : result.filePath ?? null;
-    });
-
-    ipcMain.handle('clipforge:get-recents', () => app.getRecentDocuments());
   });
 
   if (isPackaged) {
@@ -60,6 +48,18 @@ function createWindow() {
   } else {
     void win.loadURL(process.env.CLIPFORGE_DEV_URL ?? 'http://localhost:5173');
   }
+
+  ipcMain.handle('clipforge:open-file', async (_event, filters = []) => {
+    const result = await dialog.showOpenDialog({ properties: ['openFile'], filters });
+    return result.canceled ? null : result.filePaths[0] ?? null;
+  });
+
+  ipcMain.handle('clipforge:save-file', async (_event, options = {}) => {
+    const result = await dialog.showSaveDialog(options);
+    return result.canceled ? null : result.filePath ?? null;
+  });
+
+  ipcMain.handle('clipforge:get-recents', () => app.getRecentDocuments());
 }
 
 function appMenu() {
@@ -68,12 +68,29 @@ function appMenu() {
     ...(isMac ? [{ role: 'appMenu' }] : []),
     {
       label: 'File',
-      submenu: [{ role: 'quit' }],
+      submenu: [
+        {
+          label: 'Open project…',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => BrowserWindow.getFocusedWindow()?.webContents.send('clipforge:menu-action', 'open-project'),
+        },
+        {
+          label: 'Save project',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => BrowserWindow.getFocusedWindow()?.webContents.send('clipforge:menu-action', 'save-project'),
+        },
+        { type: 'separator' },
+        { role: 'quit' },
+      ],
     },
     {
       label: 'Edit',
       submenu: [
         { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+        {
+          label: 'Import media…',
+          click: () => BrowserWindow.getFocusedWindow()?.webContents.send('clipforge:menu-action', 'import-media'),
+        },
         { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' },
       ],
     },

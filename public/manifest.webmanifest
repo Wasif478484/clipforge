@@ -1,0 +1,12 @@
+{
+  "name": "ClipForge",
+  "short_name": "ClipForge",
+  "description": "A local-first video editor for browser and desktop.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#1c1c1c",
+  "theme_color": "#1c1c1c",
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
