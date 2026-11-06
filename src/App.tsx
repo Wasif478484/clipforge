@@ -60,6 +60,19 @@ export default function App() {
   const clipboardRef = useRef<Clip[]>([]);
   const stateRef = useRef({ assets, clips, texts, duration: 0 });
 
+  const interpolateKeyframes = (frames: { t: number; value: number }[] | undefined, t: number, fallback: number): number => {
+    if (!frames?.length) return fallback;
+    const sorted = [...frames].sort((a, b) => a.t - b.t);
+    if (t <= sorted[0].t) return sorted[0].value;
+    const last = sorted[sorted.length - 1];
+    if (t >= last.t) return last.value;
+    const nextIndex = sorted.findIndex((frame) => frame.t >= t);
+    const next = sorted[nextIndex];
+    const prev = sorted[nextIndex - 1];
+    const p = (t - prev.t) / Math.max(0.0001, next.t - prev.t);
+    return prev.value + (next.value - prev.value) * p;
+  };
+
 
   const duration = useMemo(
     () => Math.max(0, ...clips.map((c) => c.start + c.duration), ...texts.map((t) => t.start + t.duration)),
@@ -216,6 +229,7 @@ export default function App() {
       if (active && !clip.muted) {
         const elapsed = t - clip.start;
         const remaining = clip.start + clip.duration - t;
+        vol *= Math.max(0, interpolateKeyframes(clip.keyframes?.volume, elapsed, 1));
         if (clip.volumeFadeIn > 0 && elapsed < clip.volumeFadeIn) {
           vol *= Math.max(0, elapsed / clip.volumeFadeIn);
         }
@@ -313,6 +327,7 @@ export default function App() {
         }
 
         let alpha = 1;
+        alpha *= Math.max(0, Math.min(1, interpolateKeyframes(clip.keyframes?.opacity, elapsed, 1)));
         if (clip.transitionIn === 'fade' || clip.transitionIn === 'slide' || clip.transitionIn === 'wipe-left' || clip.transitionIn === 'push-up' || clip.transitionIn === 'zoom-in') {
           if (elapsed < inDur) alpha *= Math.max(0, elapsed / inDur);
         }
@@ -1406,6 +1421,7 @@ export default function App() {
           showHints={loadSettings().showInterfaceHints}
           onChangeClip={patchClip}
           onSpeedChange={handleSpeedChange}
+          currentTime={currentTime}
           onChangeText={patchText}
           onDeleteSelection={handleDeleteSelection}
           onSplit={handleSplit}

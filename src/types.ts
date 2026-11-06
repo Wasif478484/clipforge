@@ -28,6 +28,11 @@ export interface ClipFilter {
   grayscale: number; // 0..1
 }
 
+export interface ClipKeyframes {
+  volume?: { t: number; value: number }[];
+  opacity?: { t: number; value: number }[];
+}
+
 export const DEFAULT_FILTER: ClipFilter = {
   brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0, grayscale: 0,
 };
@@ -56,6 +61,7 @@ export interface Clip {
   fadeOut: number;  // seconds
   volumeFadeIn: number;   // seconds
   volumeFadeOut: number;  // seconds
+  keyframes?: ClipKeyframes;
 }
 
 export interface TextOverlay {

@@ -10,6 +10,7 @@ interface Props {
   showHints: boolean;
   onChangeClip: (id: string, patch: Partial<Clip>) => void;
   onSpeedChange: (clipId: string, speed: number) => void;
+  currentTime: number;
   onChangeText: (id: string, patch: Partial<TextOverlay>) => void;
   onDeleteSelection: () => void;
   onSplit: () => void;
@@ -28,6 +29,7 @@ export default function Inspector({
   showHints,
   onChangeClip,
   onSpeedChange,
+  currentTime,
   onChangeText,
   onDeleteSelection,
   onSplit,
@@ -106,6 +108,53 @@ export default function Inspector({
               <label>Speed — {clip.speed.toFixed(2)}×</label>
               <input type="range" min={0.25} max={2} step={0.25} value={clip.speed}
                 onChange={(e) => onSpeedChange(clip.id, Number(e.target.value))} />
+            </div>
+            <div className="field-group-title">Keyframes</div>
+            <div className="field-row">
+              <div className="field">
+                <label>Volume at playhead</label>
+                <input type="number" min={0} max={1} step={0.05}
+                  value={(clip.keyframes?.volume?.find((f) => Math.abs(f.t - (currentTime - clip.start)) < 0.02)?.value ?? clip.volume).toFixed(2)}
+                  onChange={(e) => {
+                    const t = Math.max(0, Math.min(clip.duration, currentTime - clip.start));
+                    const value = Math.max(0, Math.min(1, num(e.target.value, clip.volume)));
+                    const frames = [...(clip.keyframes?.volume ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value }];
+                    onChangeClip(clip.id, { keyframes: { ...clip.keyframes, volume: frames } });
+                  }} />
+              </div>
+              <div className="field">
+                <label>Opacity at playhead</label>
+                <input type="number" min={0} max={1} step={0.05}
+                  value={(clip.keyframes?.opacity?.find((f) => Math.abs(f.t - (currentTime - clip.start)) < 0.02)?.value ?? 1).toFixed(2)}
+                  onChange={(e) => {
+                    const t = Math.max(0, Math.min(clip.duration, currentTime - clip.start));
+                    const value = Math.max(0, Math.min(1, num(e.target.value, 1)));
+                    const frames = [...(clip.keyframes?.opacity ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value }];
+                    onChangeClip(clip.id, { keyframes: { ...clip.keyframes, opacity: frames } });
+                  }} />
+              </div>
+            </div>
+            <div className="field-row">
+              <button className="btn small ghost" type="button" onClick={() => {
+                const t = Math.max(0, Math.min(clip.duration, currentTime - clip.start));
+                onChangeClip(clip.id, {
+                  keyframes: {
+                    ...clip.keyframes,
+                    volume: [...(clip.keyframes?.volume ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value: clip.volume }],
+                    opacity: [...(clip.keyframes?.opacity ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value: 1 }],
+                  },
+                });
+              }}>Add at playhead</button>
+              <button className="btn small ghost" type="button" onClick={() => {
+                const t = Math.max(0, Math.min(clip.duration, currentTime - clip.start));
+                onChangeClip(clip.id, {
+                  keyframes: {
+                    ...clip.keyframes,
+                    volume: clip.keyframes?.volume?.filter((f) => Math.abs(f.t - t) >= 0.02),
+                    opacity: clip.keyframes?.opacity?.filter((f) => Math.abs(f.t - t) >= 0.02),
+                  },
+                });
+              }}>Remove at playhead</button>
             </div>
 
             <div className="field-group-title">Color correction</div>
