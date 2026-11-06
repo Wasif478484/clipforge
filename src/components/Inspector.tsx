@@ -222,6 +222,10 @@ export default function Inspector({
                   <option value="fade">Fade</option>
                   <option value="crossfade">Crossfade</option>
                   <option value="slide">Slide</option>
+                  <option value="wipe-left">Wipe left</option>
+                  <option value="push-up">Push up</option>
+                  <option value="dissolve">Dissolve</option>
+                  <option value="zoom-in">Zoom in</option>
                 </select>
               </div>
               <div className="field">
