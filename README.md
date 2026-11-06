@@ -21,6 +21,9 @@ open alternative for people who want a CapCut-style editor they can own and modi
 - Per-clip volume, mute, frame fit (fill / letterbox)
 - Split at playhead (`Ctrl/Cmd+B`), `Space` play/pause, `Delete` to remove
 - Export to **WebM** (VP9) via `MediaRecorder` — plays through in real time
+- Export quality presets: 720p, 1080p and 4K with low / medium / high bitrate
+- Local background removal with vendored MediaPipe WASM and Selfie Segmenter model
+- Local MP4 transcoding with vendored FFmpeg WASM
 
 ## Stack
 
@@ -74,13 +77,23 @@ npx vercel --prod # production
 
 ## Roadmap
 
-- [ ] Export without real-time re-capture (WebCodecs + mp4box) or ffmpeg.wasm
+- [x] Local MediaPipe and FFmpeg WASM assets
+- [x] Export presets, transitions, effects, and keyframes
+- [x] Project save/load (IndexedDB + portable `.clipforge.json`)
+- [x] Responsive layout, accessibility improvements, and local smoke tests
+- [ ] Extract the remaining editor callbacks into focused hooks and migrate all App state to the editor store
 - [ ] Server-side render option for faster exports (headless FFmpeg)
-- [ ] Transitions, effects, keyframes
 - [ ] Captions (Whisper WASM) and auto-subtitles
 - [ ] Audio denoise (RNNoise) and background matting (MediaPipe)
-- [ ] Project save/load (IndexedDB + portable `.clipforge.json`)
 - [ ] Collaboration (Yjs CRDT)
+
+## Performance and privacy
+
+Media processing runs in the browser or Electron renderer. MediaPipe and FFmpeg
+runtime assets are shipped under `public/`, so background removal and MP4
+transcoding do not contact a CDN at runtime. Keep preview filters lightweight,
+prefer clip thumbnails over repeatedly decoding source media, and use the
+timeline zoom and export quality controls to balance fidelity and memory use.
 
 ## License
 

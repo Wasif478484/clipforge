@@ -5,6 +5,7 @@ import Stage from './components/Stage';
 import Inspector from './components/Inspector';
 import Timeline from './components/Timeline';
 import ImageEditor from './components/ImageEditor';
+import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
@@ -960,7 +961,7 @@ export default function App() {
   const handleSaveProject = useCallback(async () => {
     const { clips: clipList, texts: textList, assets: assetList } = stateRef.current;
     showToast('Packing project file…');
-    const stored: Array<{ id: string; name: string; kind: MediaKind; duration: number; width?: number; height?: number; mime: string; dataUrl: string }> = [];
+    const stored: Array<{ id: string; name: string; kind: MediaKind; duration: number; width?: number | undefined; height?: number | undefined; mime: string; dataUrl: string }> = [];
     for (const a of assetList) {
       try {
         const blob = await (await fetch(a.url)).blob();
@@ -1397,12 +1398,14 @@ export default function App() {
 
   if (mode === 'image' && imageSource) {
     return (
-      <ImageEditor
-        initialImage={imageSource}
-        initialName={imageName}
-        onClose={() => setMode('dashboard')}
-        onExportRecent={saveImageToRecent}
-      />
+      <ErrorBoundary fallback={<div className="error-state">The image editor could not render. Return to the dashboard and try again.</div>}>
+        <ImageEditor
+          initialImage={imageSource}
+          initialName={imageName}
+          onClose={() => setMode('dashboard')}
+          onExportRecent={saveImageToRecent}
+        />
+      </ErrorBoundary>
     );
   }
 

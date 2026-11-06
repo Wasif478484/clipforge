@@ -7,8 +7,8 @@ export interface StoredAsset {
   name: string;
   kind: 'video' | 'audio' | 'image';
   duration: number;
-  width?: number;
-  height?: number;
+  width?: number | undefined;
+  height?: number | undefined;
   blob: Blob;
 }
 
@@ -18,7 +18,7 @@ export interface RecentProject {
   kind: 'video' | 'image';
   createdAt: number;
   updatedAt: number;
-  thumbnail?: string;        // small JPEG data URL
+  thumbnail?: string | undefined;        // small JPEG data URL
   videoJson?: string;        // video: JSON project state (name, aspect, clips, texts)
   assets?: StoredAsset[];    // video / audio / image blobs referenced above
   imageBlob?: Blob;          // image: flattened exported file

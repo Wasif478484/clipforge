@@ -24,6 +24,7 @@ import {
   WandIcon,
   Logo,
 } from '../icons';
+import ErrorBoundary from './ErrorBoundary';
 
 const HeroScene = lazy(() => import('../landing/hero-scene/HeroScene'));
 
@@ -177,7 +178,9 @@ export default function Dashboard({
           <Suspense
             fallback={<div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'var(--canvas)' }} />}
           >
-            <HeroScene paused={!heroVisible} />
+            <ErrorBoundary fallback={<div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'var(--canvas)' }} />}>
+              <HeroScene paused={!heroVisible} />
+            </ErrorBoundary>
           </Suspense>
           <div className="studio-hero-row" style={{ position: 'relative', zIndex: 1 }}>
             <div className="studio-hero-copy">

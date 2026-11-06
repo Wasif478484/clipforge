@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,6 +25,7 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true,
       spellcheck: false,
+      preload: path.join(dirname, 'preload.mjs'),
     },
   });
 
@@ -40,6 +41,18 @@ function createWindow() {
       event.preventDefault();
       openExternal(url);
     }
+
+    ipcMain.handle('clipforge:open-file', async (_event, filters) => {
+      const result = await dialog.showOpenDialog({ properties: ['openFile'], filters });
+      return result.canceled ? null : result.filePaths[0] ?? null;
+    });
+
+    ipcMain.handle('clipforge:save-file', async (_event, options) => {
+      const result = await dialog.showSaveDialog(options);
+      return result.canceled ? null : result.filePath ?? null;
+    });
+
+    ipcMain.handle('clipforge:get-recents', () => app.getRecentDocuments());
   });
 
   if (isPackaged) {

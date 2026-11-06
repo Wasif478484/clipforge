@@ -14,8 +14,8 @@ export interface MediaAsset {
   kind: MediaKind;
   url: string;
   duration: number;
-  width?: number;
-  height?: number;
+  width?: number | undefined;
+  height?: number | undefined;
 }
 
 export interface ClipFilter {
@@ -29,8 +29,8 @@ export interface ClipFilter {
 }
 
 export interface ClipKeyframes {
-  volume?: { t: number; value: number }[];
-  opacity?: { t: number; value: number }[];
+  volume?: { t: number; value: number }[] | undefined;
+  opacity?: { t: number; value: number }[] | undefined;
 }
 
 export const DEFAULT_FILTER: ClipFilter = {

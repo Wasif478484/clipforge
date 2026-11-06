@@ -13,7 +13,10 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "desktop:dev": "npm run build && electron .",
-    "desktop:build": "npm run build && electron-builder --win --x64"
+    "desktop:build": "npm run build && electron-builder --win --x64",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test"
   },
   "build": {
     "appId": "com.clipforge.app",
@@ -100,9 +103,13 @@
     "@mediapipe/tasks-vision": "^1.2.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "three": "0.186.1"
+    "three": "0.186.1",
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
@@ -110,8 +117,12 @@
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.2.1",
     "electron-builder": "^26.18.0",
+    "fake-indexeddb": "^6.2.7",
+    "jsdom": "^31.0.0",
     "oxlint": "^1.89.0",
+    "playwright": "^1.65.0",
     "typescript": "~7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.5",
+    "vitest": "^5.1.0"
   }
 }

@@ -595,7 +595,36 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 }
 
 @media (max-width: 860px) {
-  .studio { flex-direction: column; }
+  .studio { flex-direction: column;   }
+
+  @media (max-width: 980px) {
+    :root { --panel-w: 236px; --inspector-w: 250px; }
+    .topbar { gap: 6px; padding: 0 10px; }
+    .project-name { width: 150px; }
+    .topbar .btn.small { padding-inline: 8px; }
+    .export-format-select { max-width: 86px; }
+  }
+
+  @media (max-width: 720px) {
+    .topbar { height: auto; min-height: 56px; flex-wrap: wrap; padding-block: 8px; }
+    .topbar .spacer { display: none; }
+    .project-name { order: 2; flex: 1 1 160px; }
+    .workspace { display: flex; flex-direction: column; }
+    .workspace > .panel.media { max-height: 34vh; border-right: 0; border-bottom: 1px solid var(--hairline); }
+    .workspace > .panel.inspector { max-height: 40vh; border-left: 0; border-top: 1px solid var(--hairline); }
+    .stage { min-height: 42vh; }
+    .timeline { min-height: 220px; }
+    .studio { display: block; }
+    .studio-sidebar { width: 100%; height: auto; }
+    .studio-nav { flex-direction: row; overflow-x: auto; }
+    .studio-main { min-width: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  }
+
+  .error-state { display: grid; place-items: center; min-height: 100%; padding: 32px; color: var(--ink-muted); text-align: center; }
   .studio-sidebar {
     order: 2; width: 100%; flex-direction: row; align-items: center; justify-content: space-between;
     padding: 12px 14px; gap: 12px; border-right: 0; border-top: 1px solid var(--hairline); overflow-x: auto;
