@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import TopBar from './components/TopBar';
+import TopBar, { type ExportQuality } from './components/TopBar';
 import MediaPanel from './components/MediaPanel';
 import Stage from './components/Stage';
 import Inspector from './components/Inspector';
@@ -12,7 +12,7 @@ import { loadSettings } from './lib/settings';
 import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
-import { DEFAULT_FILTER } from './types';
+import { CANVAS_SIZE, DEFAULT_FILTER } from './types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
@@ -47,6 +47,7 @@ export default function App() {
   const sourceByAsset = useRef(new Map<string, MediaElementAudioSourceNode>());
   const gainByClip = useRef(new Map<string, GainNode>());
   const exportRecorderRef = useRef<MediaRecorder | null>(null);
+  const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const rafRef = useRef(0);
   const startStampRef = useRef(0);
@@ -249,7 +250,7 @@ export default function App() {
   /* ------------------------------------------------ rendering ------------------------------------------------ */
 
   const drawFrame = useCallback((t: number) => {
-    const canvas = canvasRef.current;
+    const canvas = exportCanvasRef.current ?? canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -638,6 +639,7 @@ export default function App() {
     setCurrentTime(0);
     currentTimeRef.current = 0;
     setExportProgress(null);
+    exportCanvasRef.current = null;
   }, []);
 
   /* ------------------------------------------------ project ops ------------------------------------------------ */
@@ -1174,7 +1176,18 @@ export default function App() {
     }
   }, [showToast]);
 
-  const handleExport = useCallback(() => {
+  const prepareExportCanvas = useCallback((quality: ExportQuality) => {
+    if (quality === '720p') return canvasRef.current;
+    const base = CANVAS_SIZE[aspect];
+    const height = quality === '4K' ? 2160 : 1080;
+    const canvas = document.createElement('canvas');
+    canvas.height = height;
+    canvas.width = Math.round(height * base.w / base.h);
+    exportCanvasRef.current = canvas;
+    return canvas;
+  }, [aspect]);
+
+  const handleExport = useCallback((quality: ExportQuality, bitrate: number) => {
     const dur = stateRef.current.duration;
     if (dur <= 0) {
       showToast('Nothing to export yet.');
@@ -1187,10 +1200,9 @@ export default function App() {
     setPlaying(false);
     currentTimeRef.current = 0;
     setCurrentTime(0);
-    drawFrame(0);
-
-    const canvas = canvasRef.current;
+    const canvas = prepareExportCanvas(quality);
     if (!canvas) return;
+    drawFrame(0);
     const videoStream = canvas.captureStream(30);
     const dest = ctx.createMediaStreamDestination();
     masterGainRef.current?.connect(dest);
@@ -1200,7 +1212,7 @@ export default function App() {
     const mime = pickSupportedMime(['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']);
     const recorder = new MediaRecorder(
       combined,
-      mime ? { mimeType: mime, videoBitsPerSecond: 8_000_000 } : undefined,
+      mime ? { mimeType: mime, videoBitsPerSecond: bitrate } : undefined,
     );
     const chunks: Blob[] = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
@@ -1221,9 +1233,9 @@ export default function App() {
     setExportProgress(0);
     showToast('Exporting in real time — the preview will play through once.');
     play();
-  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, projectName, showToast]);
+  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, prepareExportCanvas, projectName, showToast]);
 
-  const handleExportMp4 = useCallback(async () => {
+  const handleExportMp4 = useCallback(async (quality: ExportQuality, bitrate: number) => {
     const dur = stateRef.current.duration;
     if (dur <= 0) { showToast('Nothing to export yet.'); return; }
     setMp4Busy(true);
@@ -1234,9 +1246,9 @@ export default function App() {
     setPlaying(false);
     currentTimeRef.current = 0;
     setCurrentTime(0);
-    drawFrame(0);
-    const canvas = canvasRef.current;
+    const canvas = prepareExportCanvas(quality);
     if (!canvas) { setMp4Busy(false); return; }
+    drawFrame(0);
     showToast('Recording timeline…');
     const videoStream = canvas.captureStream(30);
     const dest = ctx.createMediaStreamDestination();
@@ -1245,13 +1257,14 @@ export default function App() {
     exportDestRef.current = dest;
     const combined = new MediaStream([...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
     const mime = pickSupportedMime(['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm']) ?? 'video/webm';
-    const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+    const recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: bitrate });
     const chunks: Blob[] = [];
     recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
     const webmBlob: Blob = await new Promise((resolve) => {
       recorder.onstop = () => {
         masterGainRef.current?.disconnect(dest);
         exportDestRef.current = null;
+        exportCanvasRef.current = null;
         resolve(new Blob(chunks, { type: mime }));
       };
       exportRecorderRef.current = recorder;
@@ -1288,7 +1301,7 @@ export default function App() {
       setExportProgress(null);
       setMp4Busy(false);
     }
-  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, projectName, showToast]);
+  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, prepareExportCanvas, projectName, showToast]);
 
   /* ------------------------------------------------ keyboard ------------------------------------------------ */
 

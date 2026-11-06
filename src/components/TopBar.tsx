@@ -8,8 +8,8 @@ interface Props {
   onProjectNameChange: (name: string) => void;
   aspect: Aspect;
   onAspectChange: (aspect: Aspect) => void;
-  onExport: () => void;
-  onExportMp4: () => void;
+  onExport: (quality: ExportQuality, bitrate: number) => void;
+  onExportMp4: (quality: ExportQuality, bitrate: number) => void;
   onAddText: () => void;
   onHome?: () => void;
   onUndo?: () => void;
@@ -22,6 +22,8 @@ interface Props {
   canExport: boolean;
   defaultExportFormat?: 'webm' | 'mp4';
 }
+
+export type ExportQuality = '720p' | '1080p' | '4K';
 
 export default function TopBar({
   projectName,
@@ -43,12 +45,14 @@ export default function TopBar({
   defaultExportFormat = 'webm',
 }: Props) {
   const [exportFormat, setExportFormat] = useState<'webm' | 'mp4'>(defaultExportFormat);
+  const [quality, setQuality] = useState<ExportQuality>('1080p');
+  const [bitrate, setBitrate] = useState(8_000_000);
 
   const handleExport = () => {
     if (exportFormat === 'mp4') {
-      onExportMp4();
+      onExportMp4(quality, bitrate);
     } else {
-      onExport();
+      onExport(quality, bitrate);
     }
   };
 
@@ -123,6 +127,16 @@ export default function TopBar({
       >
         <option value="webm">WebM</option>
         <option value="mp4">MP4</option>
+      </select>
+      <select className="export-format-select" value={quality} onChange={(e) => setQuality(e.target.value as ExportQuality)} aria-label="Export quality">
+        <option value="720p">720p</option>
+        <option value="1080p">1080p</option>
+        <option value="4K">4K</option>
+      </select>
+      <select className="export-format-select" value={bitrate} onChange={(e) => setBitrate(Number(e.target.value))} aria-label="Export bitrate">
+        <option value={2_000_000}>Low bitrate</option>
+        <option value={8_000_000}>Medium bitrate</option>
+        <option value={16_000_000}>High bitrate</option>
       </select>
       <button className="btn" onClick={handleExport} disabled={!canExport || exporting}>
         {exporting ? `Exporting... ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export'}
