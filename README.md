@@ -24,6 +24,7 @@ open alternative for people who want a CapCut-style editor they can own and modi
 - Export quality presets: 720p, 1080p and 4K with low / medium / high bitrate
 - Local background removal with vendored MediaPipe WASM and Selfie Segmenter model
 - Local MP4 transcoding with vendored FFmpeg WASM
+- Local storage diagnostics with low-storage warnings before project caching/export
 
 ## Stack
 
@@ -81,6 +82,7 @@ npx vercel --prod # production
 - [x] Export presets, transitions, effects, and keyframes
 - [x] Project save/load (IndexedDB + portable `.clipforge.json`)
 - [x] Responsive layout, accessibility improvements, and local smoke tests
+- [x] Storage diagnostics and low-storage warnings
 - [ ] Extract the remaining editor callbacks into focused hooks and migrate all App state to the editor store
 - [ ] Server-side render option for faster exports (headless FFmpeg)
 - [ ] Captions (Whisper WASM) and auto-subtitles

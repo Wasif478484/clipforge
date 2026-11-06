@@ -17,6 +17,7 @@ import { CANVAS_SIZE, DEFAULT_FILTER } from './types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { parseProjectData } from './lib/project';
+import { getStorageDiagnostics, type StorageDiagnostics } from './lib/storage';
 
 export default function App() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -30,6 +31,7 @@ export default function App() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [pxPerSec, setPxPerSec] = useState(45);
   const [toast, setToast] = useState<string | null>(null);
+  const [storageStatus, setStorageStatus] = useState<StorageDiagnostics | null>(null);
   const [generatingSample, setGeneratingSample] = useState(false);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [mp4Busy, setMp4Busy] = useState(false);
@@ -1411,6 +1413,15 @@ export default function App() {
     if (!playingRef.current) drawAndSync(currentTime, false);
   }, [currentTime, aspect, clips, texts, drawAndSync]);
 
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const next = await getStorageDiagnostics();
+      if (active) setStorageStatus(next);
+    })();
+    return () => { active = false; };
+  }, []);
+
   const hasContent = clips.length + texts.length > 0;
 
   if (mode === 'home') {
@@ -1469,6 +1480,7 @@ export default function App() {
         mp4Busy={mp4Busy}
         canExport={duration > 0}
         defaultExportFormat={loadSettings().defaultExportFormat}
+        storageStatus={storageStatus}
       />
       <main className="workspace">
         <MediaPanel

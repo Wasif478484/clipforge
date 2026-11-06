@@ -2,6 +2,8 @@ import type { Aspect } from '../types';
 import { TypeIcon } from '../icons';
 import { Logo } from '../icons';
 import { useState } from 'react';
+import type { StorageDiagnostics } from '../lib/storage';
+import { formatBytes } from '../lib/storage';
 
 interface Props {
   projectName: string;
@@ -22,6 +24,7 @@ interface Props {
   mp4Busy: boolean;
   canExport: boolean;
   defaultExportFormat?: 'webm' | 'mp4';
+  storageStatus?: StorageDiagnostics | null;
 }
 
 export type ExportQuality = '720p' | '1080p' | '4K';
@@ -45,6 +48,7 @@ export default function TopBar({
   mp4Busy,
   canExport,
   defaultExportFormat = 'webm',
+  storageStatus,
 }: Props) {
   const [exportFormat, setExportFormat] = useState<'webm' | 'mp4'>(defaultExportFormat);
   const [quality, setQuality] = useState<ExportQuality>('1080p');
@@ -59,6 +63,9 @@ export default function TopBar({
   };
 
   const exporting = exportProgress !== null || mp4Busy;
+  const storageLabel = storageStatus?.available
+    ? `${storageStatus.isLow ? 'Low storage' : 'Storage'} · ${formatBytes(storageStatus.freeBytes)} free`
+    : 'Storage unavailable';
 
   return (
     <header className="topbar">
@@ -71,6 +78,19 @@ export default function TopBar({
         <button className="btn ghost small" onClick={onHome} title="Back to home">
           Home
         </button>
+      )}
+
+      {storageStatus && (
+        <div
+          className={`storage-indicator ${storageStatus.isLow ? 'warning' : ''}`}
+          title={storageStatus.isLow
+            ? 'Low storage detected. Export and caching may be constrained.'
+            : 'Local storage usage is healthy.'}
+          aria-live="polite"
+        >
+          <span className="storage-dot" />
+          <span>{storageLabel}</span>
+        </div>
       )}
 
       <div className="toolbar-group">

@@ -95,6 +95,25 @@ button:disabled { cursor: default; }
 .toolbar-group { display: flex; gap: 6px; align-items: center; }
 .toolbar-group button { white-space: nowrap; }
 
+.storage-indicator {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid rgba(62, 207, 142, 0.2);
+  background: rgba(62, 207, 142, 0.08);
+  color: #d4f7e7; border-radius: 999px; padding: 5px 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.storage-indicator.warning {
+  border-color: rgba(255, 93, 93, 0.35);
+  background: rgba(255, 93, 93, 0.07);
+  color: #ffd5d5;
+}
+.storage-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--success); box-shadow: 0 0 10px rgba(62, 207, 142, 0.9);
+}
+.storage-indicator.warning .storage-dot { background: var(--destructive); box-shadow: 0 0 10px rgba(255, 93, 93, 0.9); }
+
 /* ── Segmented aspect control ────────────────────────────────────────────── */
 .segmented {
   display: flex; align-items: center; gap: 4px;
