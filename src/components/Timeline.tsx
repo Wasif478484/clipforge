@@ -8,6 +8,7 @@ interface Props {
   texts: TextOverlay[];
   assetKindById: Record<string, MediaKind | undefined>;
   waveforms: Record<string, number[]>;
+  thumbs: Record<string, string>;
   duration: number;
   currentTime: number;
   playing: boolean;
@@ -42,6 +43,7 @@ export default function Timeline({
   texts,
   assetKindById,
   waveforms,
+  thumbs,
   duration,
   currentTime,
   playing,
@@ -195,6 +197,7 @@ export default function Timeline({
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
       >
+        {thumbs[clip.assetId] && <span className="clip-thumb" style={{ backgroundImage: `url(${thumbs[clip.assetId]})` }} aria-hidden="true" />}
         <div className="trim left" data-trim="left" />
         <span className="clip-name">{clip.name}</span>
         {kind === 'audio' && waveforms[clip.assetId] && (

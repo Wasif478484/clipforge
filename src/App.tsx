@@ -9,7 +9,7 @@ import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
 import { loadSettings } from './lib/settings';
-import { createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
+import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from './types';
 import { DEFAULT_FILTER } from './types';
@@ -32,6 +32,7 @@ export default function App() {
   const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [mp4Busy, setMp4Busy] = useState(false);
   const [waveforms, setWaveforms] = useState<Record<string, number[]>>({});
+  const [thumbs, setThumbs] = useState<Record<string, string>>({});
 
   const [mode, setMode] = useState<'home' | 'video' | 'image' | 'dashboard'>('home');
   const [imageSource, setImageSource] = useState<string | null>(null);
@@ -92,6 +93,17 @@ export default function App() {
     for (const a of assets) map[a.id] = a.kind;
     return map;
   }, [assets]);
+
+  useEffect(() => {
+    let cancelled = false;
+    for (const asset of assets) {
+      if (asset.kind === 'audio' || thumbs[asset.id]) continue;
+      void captureAssetThumb(asset).then((thumb) => {
+        if (!cancelled && thumb) setThumbs((prev) => ({ ...prev, [asset.id]: thumb }));
+      });
+    }
+    return () => { cancelled = true; };
+  }, [assets, thumbs]);
 
   const showToast = useCallback((message: string) => setToast(message), []);
 
@@ -1404,6 +1416,7 @@ export default function App() {
         texts={texts}
         assetKindById={assetKindById}
         waveforms={waveforms}
+        thumbs={thumbs}
         duration={duration}
         currentTime={currentTime}
         playing={playing}

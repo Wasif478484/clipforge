@@ -36,8 +36,7 @@ export function probeAsset(file: File): Promise<MediaAsset | null> {
   });
 }
 
-/** Read a Blob as a base64 data URL (used to embed media in project files). */
-export function blobToDataURL(blob: Blob): Promise<string> {
+/** Read a Blob as a base64 data URL (used to embed media in project files). */export function blobToDataURL(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -68,6 +67,58 @@ export function revokeAllAssetUrls(assets: readonly MediaAsset[]): void {
   (el as HTMLVideoElement).playsInline = true;
   el.load();
   return el;
+}
+
+/** Capture a small local thumbnail for visual clips. */
+export function captureAssetThumb(asset: MediaAsset): Promise<string | null> {
+  if (asset.kind === 'audio') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = asset.height && asset.width
+      ? Math.max(1, Math.round(320 * asset.height / asset.width))
+      : 180;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) { resolve(null); return; }
+
+    if (asset.kind === 'image') {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.onerror = () => resolve(null);
+      img.src = asset.url;
+      return;
+    }
+
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    const finish = () => {
+      video.removeEventListener('loadeddata', draw);
+      video.removeEventListener('error', fail);
+      resolve(null);
+    };
+    const fail = () => finish();
+    const draw = () => {
+      const target = Math.min(Math.max(asset.duration * 0.25, 0), Math.max(0, asset.duration - 0.05));
+      const render = () => {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        video.removeEventListener('seeked', render);
+        video.removeEventListener('error', fail);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      video.addEventListener('seeked', render, { once: true });
+      video.addEventListener('error', fail, { once: true });
+      video.currentTime = target;
+    };
+    video.addEventListener('loadeddata', draw, { once: true });
+    video.addEventListener('error', fail, { once: true });
+    video.src = asset.url;
+    video.load();
+  });
 }
 
 export interface SampleResult {
