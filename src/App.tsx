@@ -16,6 +16,7 @@ import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay } from
 import { CANVAS_SIZE, DEFAULT_FILTER } from './types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { parseProjectData } from './lib/project';
 
 export default function App() {
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -49,6 +50,7 @@ export default function App() {
   const gainByClip = useRef(new Map<string, GainNode>());
   const exportRecorderRef = useRef<MediaRecorder | null>(null);
   const exportCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const exportCancelledRef = useRef(false);
   const lastUiTimeRef = useRef(-1);
   const filterCacheRef = useRef(new Map<string, string>());
   const warnedBlurRef = useRef(new Set<string>());
@@ -673,6 +675,8 @@ export default function App() {
 
   /** Delete an asset: revoke its object URL, drop its element and any clips using it. */
   const handleDeleteAsset = useCallback((assetId: string) => {
+    const dependentCount = stateRef.current.clips.filter((clip) => clip.assetId === assetId).length;
+    if (dependentCount > 0 && !window.confirm(`Remove this media and its ${dependentCount} timeline clip${dependentCount === 1 ? '' : 's'}?`)) return;
     const asset = stateRef.current.assets.find((a) => a.id === assetId);
     if (asset) {
       revokeAssetUrl(asset);
@@ -732,6 +736,15 @@ export default function App() {
     void (async () => {
       const probed: MediaAsset[] = [];
       for (const file of Array.from(files)) {
+        const supported = file.type.startsWith('video/') || file.type.startsWith('audio/') || file.type.startsWith('image/');
+        if (!supported) {
+          showToast(`Skipped unsupported file: ${file.name}`);
+          continue;
+        }
+        if (file.size > 2 * 1024 * 1024 * 1024) {
+          showToast(`Skipped ${file.name}: files larger than 2 GB are not supported.`);
+          continue;
+        }
         const asset = await probeAsset(file);
         if (asset) probed.push(asset);
         else console.warn('Skipped unreadable file:', file.name);
@@ -987,21 +1000,14 @@ export default function App() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(String(reader.result)) as {
-          version?: number;
-          name?: string;
-          aspect?: Aspect;
-          clips?: Clip[];
-          texts?: TextOverlay[];
-          assets?: Array<{ id: string; name: string; kind: MediaKind; duration: number; width?: number; height?: number; dataUrl?: string }>;
-        };
+        const data = parseProjectData(JSON.parse(String(reader.result)));
         resetProject();
-        if (data.name) setProjectName(data.name);
-        if (data.aspect) setAspect(data.aspect);
-        const newClips = (data.clips ?? []).map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } }));
-        setTexts(data.texts ?? []);
+        setProjectName(data.name);
+        setAspect(data.aspect);
+        const newClips = data.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } }));
+        setTexts(data.texts);
         setClips(newClips);
-        const embedded = (data.assets ?? []).filter((a) => typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:'));
+        const embedded = data.assets.filter((a) => typeof a.dataUrl === 'string' && a.dataUrl.startsWith('data:'));
         const missing = newClips.filter((c) => !embedded.some((a) => a.id === c.assetId)).length;
         if (embedded.length > 0) {
           void (async () => {
@@ -1215,7 +1221,12 @@ export default function App() {
       showToast('Nothing to export yet.');
       return;
     }
+    if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
+      showToast('This browser does not support video export. Try the desktop app or a Chromium-based browser.');
+      return;
+    }
     const ctx = ensureAudioGraph();
+    exportCancelledRef.current = false;
     syncAudioGraph();
     cancelAnimationFrame(rafRef.current);
     playingRef.current = false;
@@ -1242,6 +1253,10 @@ export default function App() {
       masterGainRef.current?.disconnect(dest);
       exportDestRef.current = null;
       setExportProgress(null);
+      if (exportCancelledRef.current) {
+        showToast('Export cancelled.');
+        return;
+      }
       const type = recorder.mimeType || 'video/webm';
       const extension = type.includes('mp4') ? 'mp4' : 'webm';
       const blob = new Blob(chunks, { type });
@@ -1260,7 +1275,12 @@ export default function App() {
   const handleExportMp4 = useCallback(async (quality: ExportQuality, bitrate: number) => {
     const dur = stateRef.current.duration;
     if (dur <= 0) { showToast('Nothing to export yet.'); return; }
+    if (typeof MediaRecorder === 'undefined' || typeof HTMLCanvasElement.prototype.captureStream !== 'function') {
+      showToast('This browser does not support video export. Try the desktop app or a Chromium-based browser.');
+      return;
+    }
     setMp4Busy(true);
+    exportCancelledRef.current = false;
     const ctx = ensureAudioGraph();
     syncAudioGraph();
     cancelAnimationFrame(rafRef.current);
@@ -1297,6 +1317,11 @@ export default function App() {
       play();
     });
     setExportProgress(null);
+    if (exportCancelledRef.current) {
+      setMp4Busy(false);
+      showToast('Export cancelled.');
+      return;
+    }
     showToast('Transcoding to MP4 (this may take a moment)…');
     try {
       if (!ffmpegRef.current) {
@@ -1311,6 +1336,7 @@ export default function App() {
       const ffmpeg = ffmpegRef.current;
       await ffmpeg.writeFile('input.webm', await fetchFile(webmBlob));
       await ffmpeg.exec(['-i', 'input.webm', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '23', '-c:a', 'aac', '-movflags', '+faststart', 'output.mp4']);
+      if (exportCancelledRef.current) return;
       const data = await ffmpeg.readFile('output.mp4') as Uint8Array;
       const mp4Blob = new Blob([data.buffer as ArrayBuffer], { type: 'video/mp4' });
       const base = projectName.trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80) || 'clipforge';
@@ -1324,6 +1350,19 @@ export default function App() {
       setMp4Busy(false);
     }
   }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, prepareExportCanvas, projectName, showToast]);
+
+  const cancelExport = useCallback(() => {
+    exportCancelledRef.current = true;
+    cancelAnimationFrame(rafRef.current);
+    playingRef.current = false;
+    setPlaying(false);
+    const recorder = exportRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') recorder.stop();
+    exportRecorderRef.current = null;
+    setExportProgress(null);
+    setMp4Busy(false);
+    showToast('Export cancelled.');
+  }, [showToast]);
 
   /* ------------------------------------------------ keyboard ------------------------------------------------ */
 
@@ -1418,6 +1457,7 @@ export default function App() {
         onAspectChange={setAspect}
         onExport={handleExport}
         onExportMp4={handleExportMp4}
+        onCancelExport={cancelExport}
         onAddText={handleAddText}
         onHome={() => setMode('home')}
         onUndo={undo}

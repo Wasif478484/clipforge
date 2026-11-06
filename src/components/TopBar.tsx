@@ -10,6 +10,7 @@ interface Props {
   onAspectChange: (aspect: Aspect) => void;
   onExport: (quality: ExportQuality, bitrate: number) => void;
   onExportMp4: (quality: ExportQuality, bitrate: number) => void;
+  onCancelExport: () => void;
   onAddText: () => void;
   onHome?: () => void;
   onUndo?: () => void;
@@ -32,6 +33,7 @@ export default function TopBar({
   onAspectChange,
   onExport,
   onExportMp4,
+  onCancelExport,
   onAddText,
   onHome,
   onUndo,
@@ -138,6 +140,7 @@ export default function TopBar({
         <option value={8_000_000}>Medium bitrate</option>
         <option value={16_000_000}>High bitrate</option>
       </select>
+      {exporting && <button className="btn danger small" onClick={onCancelExport}>Cancel</button>}
       <button className="btn" onClick={handleExport} disabled={!canExport || exporting}>
         {exporting ? `Exporting... ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export'}
       </button>

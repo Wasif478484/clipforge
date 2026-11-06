@@ -12,11 +12,19 @@ export function probeAsset(file: File): Promise<MediaAsset | null> {
   const url = URL.createObjectURL(file);
 
   return new Promise((resolve) => {
+    const timeout = window.setTimeout(() => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    }, 15_000);
+    const finish = (asset: MediaAsset | null) => {
+      window.clearTimeout(timeout);
+      resolve(asset);
+    };
     if (kind === 'image') {
       const img = new Image();
       img.onload = () =>
-        resolve({ id: uid(), name: file.name, kind, url, duration: 5, width: img.naturalWidth, height: img.naturalHeight });
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+        finish({ id: uid(), name: file.name, kind, url, duration: 5, width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => { URL.revokeObjectURL(url); finish(null); };
       img.src = url;
       return;
     }
@@ -24,14 +32,14 @@ export function probeAsset(file: File): Promise<MediaAsset | null> {
     el.preload = 'metadata';
     const done = () => {
       const duration = Number.isFinite(el.duration) && el.duration > 0 ? el.duration : 5;
-      resolve({
+      finish({
         id: uid(), name: file.name, kind, url, duration,
         width: kind === 'video' ? (el as HTMLVideoElement).videoWidth : undefined,
         height: kind === 'video' ? (el as HTMLVideoElement).videoHeight : undefined,
       });
     };
     el.onloadedmetadata = done;
-    el.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    el.onerror = () => { URL.revokeObjectURL(url); finish(null); };
     el.src = url;
   });
 }
