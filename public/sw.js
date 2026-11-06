@@ -36,6 +36,6 @@ self.addEventListener('fetch', (event) => {
         void caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
       }
       return response;
-    }).catch(() => caches.match('./index.html'))),
+    }    ).catch(() => new Response('', { status: 503, statusText: 'Offline asset unavailable' }))),
   );
 });
