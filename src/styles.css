@@ -712,6 +712,24 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .error-state { display: grid; place-items: center; min-height: 100%; padding: 32px; color: var(--ink-muted); text-align: center; }
 }
 
+@media (max-width: 480px) {
+  .topbar { gap: 5px; padding-inline: 8px; }
+  .topbar .brand { font-size: 0; gap: 0; }
+  .topbar .project-group { order: 2; flex: 1 1 100%; }
+  .topbar .project-name { width: 100%; }
+  .topbar .toolbar-group { order: 3; }
+  .topbar .storage-indicator, .topbar .segmented { display: none; }
+  .topbar .command-trigger { margin-left: auto; }
+  .timeline-head { flex-wrap: wrap; gap: 8px; }
+  .timeline-title { flex: 1 0 100%; }
+  .timeline-tools { order: 3; width: 100%; overflow-x: auto; padding-bottom: 2px; }
+  .timeline-tools .timeline-tool { flex: 0 0 auto; }
+  .timeline-timecode { margin-left: auto; }
+  .zoom { margin-left: 0; }
+  .modal { padding: 16px; }
+  .export-grid { grid-template-columns: 1fr; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }

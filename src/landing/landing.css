@@ -324,6 +324,22 @@
   .tool { padding: 16px; }
   .closing__cols { row-gap: 18px; }
   .closing__brand, .closing__col, .closing__col:last-child { grid-column: 1 / -1; justify-items: start; }
+  .landing-nav { height: 60px; }
+  .landing-nav__cta { max-width: 132px; overflow: hidden; text-overflow: ellipsis; }
+  .hero { padding-top: 82px; }
+  .hero__art { height: 250px; margin-inline: -4px; }
+  .d-win { left: 12px; top: 24px; right: -24px; bottom: -18px; }
+  .d-win__bar { height: 34px; padding-inline: 10px; }
+  .d-win__name { font-size: 9px; }
+  .d-main { min-width: 0; }
+  .d-transport { padding-inline: 10px; }
+  .d-lane { height: 36px; }
+  .d-clip { font-size: 8px; padding-inline: 5px; }
+  .app-frame__top { padding-inline: 10px; }
+  .app-frame__top .app-frame__title { font-size: 10px; }
+  .preview { min-height: 150px; }
+  .faq__item { padding-block: 12px; }
+  .landing p, .landing li, .landing dd, .landing dt { font-size: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .landing *, .landing *::before, .landing *::after { animation-duration: 0.001ms !important; transition: none !important; }
