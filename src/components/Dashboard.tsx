@@ -6,6 +6,7 @@ import {
   type RecentProject,
 } from '../lib/recent';
 import { loadSettings, resetSettings, saveSettings, type ClipForgeSettings } from '../lib/settings';
+import { animate, stagger } from 'animejs';
 import {
   FilmIcon,
   ImageIcon,
@@ -119,6 +120,18 @@ export default function Dashboard({
 
   useEffect(() => { void refresh(); }, [refresh]);
 
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const motion = animate('.studio-reveal', {
+      opacity: [0, 1],
+      translateY: [18, 0],
+      delay: stagger(70),
+      duration: 650,
+      ease: 'out(3)',
+    });
+    return () => { motion.revert(); };
+  }, []);
+
   const filtered = query.trim()
     ? recents.filter((r) => (r.name + r.kind).toLowerCase().includes(query.trim().toLowerCase()))
     : recents;
@@ -208,7 +221,7 @@ export default function Dashboard({
         </header>
 
         {/* Stats strip */}
-        <div className="studio-stats">
+        <div className="studio-stats studio-reveal">
           <Stat icon={FilmIcon} n={stats.video} label="video projects" />
           <Stat icon={ImageIcon} n={stats.image} label="image exports" />
           <Stat icon={LayoutGridIcon} n={stats.total} label="saved projects" />
@@ -216,7 +229,7 @@ export default function Dashboard({
         </div>
 
         {/* Create */}
-        <section className="studio-section" aria-labelledby="create-title">
+        <section className="studio-section studio-reveal" aria-labelledby="create-title">
           <div className="studio-section-head">
             <h2 id="create-title" className="studio-section-title"><PlusIcon size={13} strokeWidth={2.2} /> Create</h2>
           </div>
@@ -261,7 +274,7 @@ export default function Dashboard({
         </section>
 
         {/* Recent projects */}
-        <section className="studio-section" aria-labelledby="recent-title">
+        <section className="studio-section studio-reveal" aria-labelledby="recent-title">
           <div className="studio-section-head">
             <h2 id="recent-title" className="studio-section-title"><ClockIcon size={13} strokeWidth={2} /> Recent projects</h2>
             {recents.length > 0 && (
