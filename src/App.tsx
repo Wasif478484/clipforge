@@ -21,6 +21,7 @@ import { getStorageDiagnostics, type StorageDiagnostics } from './lib/storage';
 import { useEditorStore } from './store/editorStore';
 import { parseCaptions, serializeCaptions } from './lib/captions';
 import type { Caption } from './types';
+import AuthGate from './components/AuthGate';
 
 export default function App() {
   const { assets, clips, texts, projectName, aspect, selection, setAssets, setClips, setTexts, setProjectName, setAspect, setSelection } = useEditorStore();
@@ -1559,32 +1560,37 @@ export default function App() {
 
   if (mode === 'dashboard') {
     return (
-      <Dashboard
-        onNewVideo={handleOpenVideo}
-        onNewImage={handleOpenImage}
-        onImportVideo={handleImportFiles}
-        onImportImage={handleImportImage}
-        onApplyTemplate={applyTemplate}
-        onOpenRecent={openRecent}
-      />
+      <AuthGate>
+        <Dashboard
+          onNewVideo={handleOpenVideo}
+          onNewImage={handleOpenImage}
+          onImportVideo={handleImportFiles}
+          onImportImage={handleImportImage}
+          onApplyTemplate={applyTemplate}
+          onOpenRecent={openRecent}
+        />
+      </AuthGate>
     );
   }
 
   if (mode === 'image' && imageSource) {
     return (
-      <ErrorBoundary fallback={<div className="error-state">The image editor could not render. Return to the dashboard and try again.</div>}>
-        <ImageEditor
-          initialImage={imageSource}
-          initialName={imageName}
-          onClose={() => setMode('dashboard')}
-          onExportRecent={saveImageToRecent}
-        />
-      </ErrorBoundary>
+      <AuthGate>
+        <ErrorBoundary fallback={<div className="error-state">The image editor could not render. Return to the dashboard and try again.</div>}>
+          <ImageEditor
+            initialImage={imageSource}
+            initialName={imageName}
+            onClose={() => setMode('dashboard')}
+            onExportRecent={saveImageToRecent}
+          />
+        </ErrorBoundary>
+      </AuthGate>
     );
   }
 
   return (
-    <div className="app">
+    <AuthGate>
+      <div className="app">
       <TopBar
         projectName={projectName}
         onProjectNameChange={setProjectName}
@@ -1700,6 +1706,7 @@ export default function App() {
           </section>
         </div>
       )}
-    </div>
+      </div>
+    </AuthGate>
   );
 }

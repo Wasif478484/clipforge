@@ -71,6 +71,12 @@ html, body, #root {
 .auth-card label { display: grid; gap: 6px; color: var(--ink-muted); font-size: 12px; font-weight: 700; }
 .auth-card input { width: 100%; }
 .auth-error { color: var(--destructive) !important; font-size: 12px; }
+.auth-success { color: var(--success) !important; font-size: 12px; }
+.auth-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.auth-badge { flex: none; padding: 5px 8px; border: 1px solid rgba(62, 207, 142, 0.3); border-radius: 999px; color: var(--accent); font-size: 10px; white-space: nowrap; }
+.auth-switch { margin: 18px 0 0; color: var(--ink-muted); font-size: 12px; text-align: center; }
+.auth-switch button { margin-left: 5px; padding: 0; border: 0; background: transparent; color: var(--accent); font: inherit; font-weight: 800; }
+.auth-switch button:hover { color: var(--accent-hover); }
 
 /* ── Focus & motion hygiene ─────────────────────────────────────────────── */
 :focus-visible {
