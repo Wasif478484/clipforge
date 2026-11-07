@@ -67,11 +67,12 @@ npm run build    # type-check + production build → dist/
 npm run preview  # serve the production build locally
 ```
 
-### Configure Supabase Auth
+### Optional Supabase setup
 
-Cloud access is currently sign-in required. Create a Supabase project, enable
-email/password authentication, and copy the project URL and publishable key into
-`.env.local`:
+The public web app opens directly on the landing page and does not require an
+account. Supabase is reserved for future cloud features; local editing and
+exports work without it. If cloud access is added, copy the project URL and
+publishable key into `.env.local`:
 
 ```text
 VITE_SUPABASE_URL=https://your-project.supabase.co
