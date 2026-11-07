@@ -56,6 +56,19 @@ export default function AuthGate({ children }: Props) {
   if (!supabaseConfig.configured) {
     return (
       <main className="auth-shell">
+        <div className="auth-pitch">
+          <div className="auth-pitch-brand"><span className="auth-pitch-mark">C</span> ClipForge</div>
+          <div>
+            <span className="auth-kicker">Your creative workspace</span>
+            <h2>Make the cut.<br /><em>Keep control.</em></h2>
+            <p>Save projects across devices while your media stays local to the editor.</p>
+          </div>
+          <div className="auth-pitch-list">
+            <span>Local media processing</span>
+            <span>Cloud project access</span>
+            <span>Open-source and MIT licensed</span>
+          </div>
+        </div>
         <section className="auth-card">
           <h1>ClipForge setup required</h1>
           <p>Cloud authentication is enabled, but Supabase is not configured for this deployment.</p>

@@ -52,7 +52,8 @@ export default function LandingPage({ onLaunchEditor, onOpenProjects }: Props) {
             <a className="landing-nav__link" href="#local">Local export</a>
             <a className="landing-nav__link" href="#faq">Questions</a>
           </nav>
-          <a className="btn landing-nav__cta" href={RELEASES_URL}>Download for Windows</a>
+          <button className="landing-nav__workspace" onClick={onLaunchEditor}>Open studio</button>
+          <a className="btn landing-nav__cta" href={RELEASES_URL}>Download app</a>
           <details className="landing-mobile">
             <summary aria-label="Menu" title="Menu">
               <ChevronDownIcon size={18} strokeWidth={1.8} />
@@ -79,16 +80,21 @@ export default function LandingPage({ onLaunchEditor, onOpenProjects }: Props) {
           <div className="wrap">
             <div className="hero-text grid">
               <div className="hero__text span-6">
+                <div className="hero__eyebrow"><span className="hero__eyebrow-dot" /> Local-first creative workspace</div>
                 <h1 id="hero-h">Open-source video editor for the browser</h1>
                 <p className="hero__lead">
-                  Cut video, retouch images and export WebM or MP4 — processing happens on your
-                  machine. Free and MIT licensed: no account, no uploads, no telemetry.
+                  A focused workspace for turning raw clips into finished stories. Cut video,
+                  retouch images and export WebM or MP4 without sending your media anywhere.
                 </p>
                 <div className="btn-row">
-                  <a className="btn" href={RELEASES_URL}>Download for Windows</a>
-                  <button className="btn btn--secondary" onClick={onLaunchEditor}>Launch the editor</button>
+                  <button className="btn" onClick={onLaunchEditor}>Open the studio <span aria-hidden="true">→</span></button>
+                  <a className="btn btn--secondary" href={RELEASES_URL}>Download desktop app</a>
                 </div>
-                <p className="hero__proof">v0.2.0 · Windows installer live · macOS and Linux builds in CI</p>
+                <div className="hero__proof">
+                  <span><b>01</b> Import locally</span>
+                  <span><b>02</b> Shape the cut</span>
+                  <span><b>03</b> Export clean</span>
+                </div>
               </div>
               <div className="hero__art span-6 start-7" role="img" aria-label="ClipForge editor window: a timeline with video, text and audio clips, and an export card for export.mp4">
                 <div className="d-win" aria-hidden="true">

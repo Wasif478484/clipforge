@@ -7,7 +7,7 @@ test('landing page exposes local-first editor launch', async ({ page }) => {
   ).toBeVisible();
   const landing = page.getByRole('heading', { name: /open-source video editor/i });
   if (await landing.isVisible()) {
-    await expect(page.getByText(/no uploads, no telemetry/i)).toBeVisible();
+    await expect(page.getByText(/without sending your media anywhere/i)).toBeVisible();
   } else {
     await expect(page.getByText(/VITE_SUPABASE_URL/i)).toBeVisible();
   }
