@@ -127,6 +127,12 @@ button:disabled { cursor: default; }
 .topbar-menu { position: absolute; right: 12px; top: 50px; z-index: 40; display: flex; flex-direction: column; min-width: 190px; padding: 6px; background: var(--surface-2); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: var(--shadow-overlay); }
 .topbar-menu button, .topbar-menu label { border: 0; background: transparent; color: var(--ink); padding: 9px 10px; text-align: left; border-radius: var(--r-sm); font: inherit; font-size: 12px; cursor: pointer; }
 .topbar-menu button:hover, .topbar-menu label:hover { background: var(--surface-3); color: var(--accent); }
+
+/* Sticker picker (TopBar) */
+.sticker-wrap { position: relative; }
+.sticker-menu { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; display: grid; grid-template-columns: repeat(5, 34px); gap: 2px; padding: 6px; background: var(--surface-2); border: 1px solid var(--hairline-strong); border-radius: var(--r-md); box-shadow: var(--shadow-overlay); }
+.sticker-item { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--r-sm); background: transparent; font-size: 17px; cursor: pointer; }
+.sticker-item:hover { background: var(--surface-3); }
 .project-name:hover { border-color: var(--hairline); }
 .project-name:focus { border-color: var(--accent); background: var(--surface-2); }
 

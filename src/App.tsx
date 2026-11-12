@@ -14,8 +14,8 @@ import { cloudProjectsEnabled, saveCloudProject } from './lib/cloudProjects';
 import { loadSettings } from './lib/settings';
 import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
-import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay, TimelineMarker, TrackSettingsMap } from './types';
-import { CANVAS_SIZE, DEFAULT_FILTER } from './types';
+import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay, TimelineMarker, TrackSettingsMap, ClipMask, ChromaKey } from './types';
+import { CANVAS_SIZE, DEFAULT_CHROMA, DEFAULT_FILTER, DEFAULT_MASK, DEFAULT_TRANSFORM } from './types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { parseProjectData } from './lib/project';
@@ -24,6 +24,126 @@ import { useEditorStore } from './store/editorStore';
 import { parseCaptions, serializeCaptions } from './lib/captions';
 import type { Caption } from './types';
 import AuthGate from './components/AuthGate';
+
+/** Fill in fields added after a project was saved, so old files stay loadable. */
+const hydrateClip = (raw: Partial<Clip>): Clip => {
+  const base: Clip = {
+    id: '', assetId: '', trackId: 'v1', name: '', start: 0, duration: 0.1,
+    trimStart: 0, trimEnd: 0, volume: 1, muted: false, fit: 'cover',
+    filter: { ...DEFAULT_FILTER }, transform: { ...DEFAULT_TRANSFORM },
+    blendMode: 'normal', mask: { ...DEFAULT_MASK }, chroma: { ...DEFAULT_CHROMA },
+    speed: 1, transitionIn: 'none', transitionOut: 'none',
+    fadeIn: 0, fadeOut: 0, volumeFadeIn: 0, volumeFadeOut: 0,
+  };
+  return {
+    ...base, ...raw,
+    filter: raw.filter ?? base.filter,
+    transform: raw.transform ?? base.transform,
+    mask: raw.mask ?? base.mask,
+    chroma: raw.chroma ?? base.chroma,
+  };
+};
+
+// Reused offscreen canvases for the chroma-key / mask render path
+// (per-frame allocation would thrash the GC).
+let sharedClipCanvas: HTMLCanvasElement | null = null;
+let sharedMaskCanvas: HTMLCanvasElement | null = null;
+
+function getSharedCanvas(which: 'clip' | 'mask', w: number, h: number): HTMLCanvasElement {
+  let canvas = which === 'clip' ? sharedClipCanvas : sharedMaskCanvas;
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    if (which === 'clip') sharedClipCanvas = canvas;
+    else sharedMaskCanvas = canvas;
+  }
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  return canvas;
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const n = Number.parseInt((hex.replace('#', '') + '000000').slice(0, 6), 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+/** Chroma-key the pixels of `ctx`'s canvas in place against `chroma.color` (YCbCr distance). */
+function applyChromaKey(ctx: CanvasRenderingContext2D, chroma: ChromaKey): void {
+  const { width: w, height: h } = ctx.canvas;
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const key = hexToRgb(chroma.color);
+  const ky = 0.299 * key.r + 0.587 * key.g + 0.114 * key.b;
+  const kcb = 0.564 * (key.b - ky);
+  const kcr = 0.713 * (key.r - ky);
+  const sim = Math.max(0.01, chroma.similarity);
+  const smooth = Math.max(0.02, chroma.smoothness);
+  for (let i = 0; i < d.length; i += 4) {
+    const a0 = d[i + 3];
+    if (a0 === 0) continue;
+    const r = d[i];
+    const g = d[i + 1];
+    const b = d[i + 2];
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    const dist = Math.hypot(0.564 * (b - y) - kcb, 0.713 * (r - y) - kcr) / 255;
+    const a = Math.max(0, Math.min(1, (dist - sim) / smooth));
+    if (a >= 1) continue;
+    if (chroma.despill) {
+      const spill = Math.min(g, Math.max(r, b));
+      const excess = g - spill;
+      if (excess > 0) {
+        // pull green toward the nearest other channel on keyed edges
+        d[i + 1] = g - excess * (1 - a);
+        d[i] = Math.min(255, r + excess * (1 - a) * 0.5);
+        d[i + 2] = Math.min(255, b + excess * (1 - a) * 0.5);
+      }
+    }
+    d[i + 3] = Math.round(a0 * a);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/** Apply `mask` to `buf` in place: destination-in/out against a feathered shape. */
+function applyClipMask(buf: HTMLCanvasElement, mask: ClipMask): void {
+  const w = buf.width;
+  const h = buf.height;
+  const m = getSharedCanvas('mask', w, h);
+  const mctx = m.getContext('2d');
+  const bctx = buf.getContext('2d');
+  if (!mctx || !bctx) return;
+  mctx.clearRect(0, 0, w, h);
+  mctx.filter = mask.feather > 0 && mask.type !== 'linear' ? `blur(${Math.max(1, mask.feather * Math.min(w, h) * 0.12)}px)` : 'none';
+  mctx.fillStyle = '#fff';
+  if (mask.type === 'circle') {
+    mctx.beginPath();
+    mctx.arc(w / 2, h / 2, Math.min(w, h) * 0.42, 0, Math.PI * 2);
+    mctx.fill();
+  } else if (mask.type === 'rect') {
+    const iw = w * 0.7;
+    const ih = h * 0.7;
+    mctx.fillRect((w - iw) / 2, (h - ih) / 2, iw, ih);
+  } else if (mask.type === 'linear') {
+    // linear masks feather through the gradient itself, angle-controlled
+    const rad = (mask.angle * Math.PI) / 180;
+    const len = Math.hypot(w, h);
+    const cx = w / 2;
+    const cy = h / 2;
+    const grad = mctx.createLinearGradient(
+      cx - (Math.cos(rad) * len) / 2, cy - (Math.sin(rad) * len) / 2,
+      cx + (Math.cos(rad) * len) / 2, cy + (Math.sin(rad) * len) / 2,
+    );
+    const e = Math.min(0.96, Math.max(0.04, mask.feather));
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.5 - e / 2, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.5 + e / 2, 'rgba(255,255,255,0)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    mctx.fillStyle = grad;
+    mctx.fillRect(0, 0, w, h);
+  }
+  mctx.filter = 'none';
+  bctx.save();
+  bctx.globalCompositeOperation = mask.invert ? 'destination-out' : 'destination-in';
+  bctx.drawImage(m, 0, 0);
+  bctx.restore();
+}
 
 export default function App() {
   const { assets, clips, texts, projectName, aspect, selection, setAssets, setClips, setTexts, setProjectName, setAspect, setSelection } = useEditorStore();
@@ -307,30 +427,70 @@ export default function App() {
     ctx.fillStyle = canvasBg;
     ctx.fillRect(0, 0, W, H);
 
-    const drawFitted = (el: HTMLVideoElement | HTMLImageElement, fit: Clip['fit'], filter: Clip['filter'], dx = 0) => {
-      const iw = el instanceof HTMLImageElement ? el.naturalWidth : el.videoWidth;
-      const ih = el instanceof HTMLImageElement ? el.naturalHeight : el.videoHeight;
-      if (!iw || !ih) return;
-      const scale = fit === 'cover' ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
-      const dw = iw * scale;
-      const dh = ih * scale;
+    const filterFor = (filter: Clip['filter']): string => {
       const filterKey = `${filter.brightness}|${filter.contrast}|${filter.saturation}|${filter.hue}|${filter.blur}|${filter.sepia}|${filter.grayscale}`;
       let filterValue = filterCacheRef.current.get(filterKey);
       if (!filterValue) {
         filterValue = `brightness(${filter.brightness}) contrast(${filter.contrast}) saturate(${filter.saturation}) hue-rotate(${filter.hue}deg) blur(${filter.blur}px) sepia(${filter.sepia}) grayscale(${filter.grayscale})`;
         filterCacheRef.current.set(filterKey, filterValue);
       }
-      ctx.filter = filterValue;
-      ctx.drawImage(el, (W - dw) / 2 + dx, (H - dh) / 2, dw, dh);
-      ctx.filter = 'none';
+      return filterValue;
     };
 
-    const drawRaw = (clip: Clip, el: HTMLVideoElement | HTMLImageElement, dx: number) => {
-      if (el instanceof HTMLImageElement) {
-        if (el.complete && el.naturalWidth) drawFitted(el, clip.fit, clip.filter, dx);
-      } else if (el instanceof HTMLVideoElement) {
-        if (el.readyState >= 2) drawFitted(el, clip.fit, clip.filter, dx);
+    // Composite `el` for `clip` onto ctx. `dx` = transition slide offset,
+    // `elapsed` = seconds into the clip (drives scale keyframes).
+    const drawRaw = (clip: Clip, el: HTMLVideoElement | HTMLImageElement, dx: number, elapsed: number) => {
+      const ready = el instanceof HTMLImageElement
+        ? el.complete && el.naturalWidth > 0
+        : el instanceof HTMLVideoElement && el.readyState >= 2;
+      if (!ready) return;
+      const iw = el instanceof HTMLImageElement ? el.naturalWidth : el.videoWidth;
+      const ih = el instanceof HTMLImageElement ? el.naturalHeight : el.videoHeight;
+      if (!iw || !ih) return;
+
+      const tr = clip.transform;
+      const fitScale = clip.fit === 'cover' ? Math.max(W / iw, H / ih) : Math.min(W / iw, H / ih);
+      const scale = fitScale * tr.scale * Math.max(0.01, interpolateKeyframes(clip.keyframes?.scale, elapsed, 1));
+      const cx = W / 2 + tr.x * (W / 2) + dx;
+      const cy = H / 2 + tr.y * (H / 2);
+
+      const compose = (target: CanvasRenderingContext2D, img: CanvasImageSource, sw: number, sh: number, k: number) => {
+        target.save();
+        target.translate(cx, cy);
+        if (tr.rotation) target.rotate((tr.rotation * Math.PI) / 180);
+        target.scale(tr.flipH ? -k : k, k);
+        target.filter = filterFor(clip.filter);
+        target.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+        target.filter = 'none';
+        target.restore();
+      };
+
+      // Blend mode is part of drawRaw's own save/restore so the caller's
+      // globalAlpha and any transition ctx.clip() survive untouched.
+      ctx.save();
+      ctx.globalCompositeOperation = clip.blendMode === 'normal' ? 'source-over' : clip.blendMode;
+
+      if (!clip.chroma.enabled && clip.mask.type === 'none') {
+        // Fast path: straight onto the composite canvas.
+        compose(ctx, el, iw, ih, scale);
+        ctx.restore();
+        return;
       }
+
+      // Buffer path: chroma key and/or mask operate on the fitted frame in
+      // source space on a shared offscreen canvas, then the result is
+      // composed with the user transform. Grading happens at composite time
+      // so the key is computed on ungraded pixels.
+      const buf = getSharedCanvas('clip', W, H);
+      const bctx = buf.getContext('2d');
+      if (!bctx) { ctx.restore(); return; }
+      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.clearRect(0, 0, W, H);
+      bctx.drawImage(el, (W - iw * fitScale) / 2, (H - ih * fitScale) / 2, iw * fitScale, ih * fitScale);
+      if (clip.chroma.enabled) applyChromaKey(bctx, clip.chroma);
+      if (clip.mask.type !== 'none') applyClipMask(buf, clip.mask);
+      compose(ctx, buf, W, H, tr.scale);
+      ctx.restore();
     };
 
     for (const trackId of ['v1', 'v2']) {
@@ -366,14 +526,14 @@ export default function App() {
               drawn.add(outgoing.id);
               ctx.save();
               ctx.globalAlpha = Math.max(0, 1 - p);
-              drawRaw(outgoing, oEl, 0);
+              drawRaw(outgoing, oEl, 0, t - outgoing.start);
               ctx.restore();
             }
           }
           drawn.add(clip.id);
           ctx.save();
           ctx.globalAlpha = Math.max(0, Math.min(1, p));
-          drawRaw(clip, pic, 0);
+          drawRaw(clip, pic, 0, elapsed);
           ctx.restore();
           continue;
         }
@@ -426,7 +586,7 @@ export default function App() {
                 ctx.save();
                 ctx.globalAlpha = 1;
                 ctx.translate(0, -off);
-                drawRaw(outgoing, oEl, 0);
+                drawRaw(outgoing, oEl, 0, t - outgoing.start);
                 ctx.restore();
               }
             }
@@ -435,7 +595,7 @@ export default function App() {
             ctx.globalAlpha = 1;
             const rise = (1 - transform.p) * H * 0.6;
             ctx.translate(0, rise);
-            drawRaw(clip, pic, 0);
+            drawRaw(clip, pic, 0, elapsed);
             ctx.restore();
             continue;
           } else if (transform.type === 'zoom') {
@@ -446,7 +606,7 @@ export default function App() {
             ctx.translate(-W / 2, -H / 2);
           }
         }
-        drawRaw(clip, pic, dx);
+        drawRaw(clip, pic, dx, elapsed);
         ctx.restore();
       }
     }
@@ -850,6 +1010,10 @@ export default function App() {
       muted: false,
       fit: 'cover',
       filter: { ...DEFAULT_FILTER },
+      transform: { ...DEFAULT_TRANSFORM },
+      blendMode: 'normal',
+      mask: { ...DEFAULT_MASK },
+      chroma: { ...DEFAULT_CHROMA },
       speed: 1,
       transitionIn: 'none',
       transitionOut: 'none',
@@ -896,6 +1060,96 @@ export default function App() {
     setTexts((prev) => [...prev, overlay]);
     setSelection({ type: 'text', id: overlay.id });
   }, []);
+
+  /** Emoji stickers are TextOverlays with no background at large size. */
+  const handleAddSticker = useCallback((emoji: string) => {
+    const overlay: TextOverlay = {
+      id: uid(),
+      text: emoji,
+      x: 0.5,
+      y: 0.5,
+      size: 96,
+      color: 'white',
+      start: clamp(currentTimeRef.current, 0, Math.max(0, stateRef.current.duration)),
+      duration: 3,
+      animation: 'pop',
+    };
+    setTexts((prev) => [...prev, overlay]);
+    setSelection({ type: 'text', id: overlay.id });
+    showToast(`Sticker ${emoji} added at the playhead.`);
+  }, [showToast]);
+
+  /**
+   * On-demand beat detection: decodes the first sound-bearing clip's asset
+   * and drops a marker on each energy onset. The 80-bucket waveform preview
+   * is too coarse for this, so the analysis runs here at full sample rate.
+   */
+  const handleDetectBeats = useCallback(async () => {
+    const { clips: clipList, assets: assetList, trackSettings: settings } = stateRef.current;
+    const soundClip = clipList
+      .filter((c) => {
+        const kind = assetList.find((a) => a.id === c.assetId)?.kind;
+        return (kind === 'audio' || kind === 'video') && !settings[c.trackId]?.muted;
+      })
+      .sort((a, b) => a.start - b.start)[0];
+    const asset = soundClip && assetList.find((a) => a.id === soundClip.assetId);
+    if (!soundClip || !asset) {
+      showToast('Add an audio or video clip first — beats are detected from its sound.');
+      return;
+    }
+    showToast('Detecting beats…');
+    try {
+      const res = await fetch(asset.url);
+      const buf = await res.arrayBuffer();
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const audioBuf = await ctx.decodeAudioData(buf);
+      void ctx.close();
+      const data = audioBuf.getChannelData(0);
+      const rate = audioBuf.sampleRate;
+      // Energy envelope: RMS per ~11.6ms hop.
+      const hop = 512;
+      const envelope: number[] = [];
+      for (let i = 0; i + hop <= data.length; i += hop) {
+        let sum = 0;
+        for (let j = 0; j < hop; j++) { const v = data[i + j] ?? 0; sum += v * v; }
+        envelope.push(Math.sqrt(sum / hop));
+      }
+      // Onset = local energy peak clearly above the ~0.25s neighbourhood mean.
+      const windowLen = Math.max(1, Math.round(0.25 / (hop / rate)));
+      const gapSamples = Math.round(0.25 * rate / hop);
+      const beats: number[] = [];
+      let lastIdx = -Infinity;
+      for (let i = 2; i < envelope.length - 2; i++) {
+        const e = envelope[i] ?? 0;
+        if (e <= 0.005) continue;
+        if (e <= (envelope[i - 2] ?? 0) || e < (envelope[i + 2] ?? 0)) continue;
+        let mean = 0;
+        let n = 0;
+        for (let j = Math.max(0, i - windowLen); j < Math.min(envelope.length, i + windowLen); j++) { mean += envelope[j] ?? 0; n++; }
+        if (n === 0 || e < 1.35 * (mean / n)) continue;
+        if (i - lastIdx < gapSamples) continue;
+        lastIdx = i;
+        beats.push((i * hop) / rate);
+      }
+      // Map asset time → timeline time and keep beats inside the clip.
+      const mapped = beats
+        .map((assetT) => soundClip.start + (assetT - soundClip.trimStart) / soundClip.speed)
+        .filter((timelineT) => timelineT >= soundClip.start && timelineT < soundClip.start + soundClip.duration)
+        .slice(0, 128);
+      if (mapped.length === 0) {
+        showToast('No clear beats found in that clip.');
+        return;
+      }
+      setMarkers((previous) => [
+        ...previous,
+        ...mapped.map((time) => ({ id: uid(), time, label: '♪', color: '#e6c476' })),
+      ].sort((a, b) => a.time - b.time));
+      showToast(`${mapped.length} beat${mapped.length === 1 ? '' : 's'} marked from ${soundClip.name}.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Beat detection failed — the audio could not be decoded.');
+    }
+  }, [showToast]);
 
   const handleDeleteSelection = useCallback(() => {
     const ids = new Set(selectedIds);
@@ -1011,7 +1265,7 @@ export default function App() {
     const s = JSON.parse(prev) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null; trackSettings?: TrackSettingsMap };
     setProjectName(s.projectName);
     setAspect(s.aspect);
-    setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
+    setClips(s.clips.map(hydrateClip));
     setTexts(s.texts);
     setCaptions(s.captions ?? []);
     setMarkers(s.markers ?? []);
@@ -1032,7 +1286,7 @@ export default function App() {
     const s = JSON.parse(next) as { projectName: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null; trackSettings?: TrackSettingsMap };
     setProjectName(s.projectName);
     setAspect(s.aspect);
-    setClips(s.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } })));
+    setClips(s.clips.map(hydrateClip));
     setTexts(s.texts);
     setCaptions(s.captions ?? []);
     setMarkers(s.markers ?? []);
@@ -1078,7 +1332,7 @@ export default function App() {
         resetProject();
         setProjectName(data.name);
         setAspect(data.aspect);
-        const newClips = data.clips.map((c) => ({ ...c, filter: c.filter ?? { ...DEFAULT_FILTER } }));
+        const newClips = data.clips.map(hydrateClip);
         setTexts(data.texts);
         setCaptions(data.captions ?? []);
         setMarkers(data.markers ?? []);
@@ -1249,7 +1503,7 @@ export default function App() {
         mediaEls.current.clear();
         newMediaEls.forEach(([id, el]) => mediaEls.current.set(id, el));
         setAssets(hydratedAssets);
-        setClips(parsed.clips);
+        setClips(parsed.clips.map(hydrateClip));
         setTexts(parsed.texts);
         setMode('video');
         showToast('Opened from dashboard.');
@@ -1634,6 +1888,7 @@ export default function App() {
         onExportMp4={handleExportMp4}
         onCancelExport={cancelExport}
         onAddText={handleAddText}
+        onAddSticker={handleAddSticker}
         onHome={() => setMode('home')}
         onUndo={undo}
         onRedo={redo}
@@ -1716,6 +1971,7 @@ export default function App() {
         onTrackSettingsChange={setTrackSettings}
         rippleEnabled={rippleEnabled}
         onRippleEnabledChange={setRippleEnabled}
+        onDetectBeats={() => void handleDetectBeats()}
       />}
       <div className="workspace-dock" aria-label="Workspace panels">
         <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, media: !p.media }))}>{collapsedPanels.media ? 'Show media' : 'Hide media'}</button>

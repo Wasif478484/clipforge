@@ -114,6 +114,133 @@ export default function Inspector({
                 <option value="contain">Fit inside (letterbox)</option>
               </select>
             </div>
+
+            <div className="field-group-title">Transform (picture-in-picture)</div>
+            <div className="field">
+              <label>Scale — {clip.transform.scale.toFixed(2)}×</label>
+              <input type="range" min={0.1} max={3} step={0.01} value={clip.transform.scale}
+                onChange={(e) => onChangeClip(clip.id, { transform: { ...clip.transform, scale: Number(e.target.value) } })} />
+            </div>
+            <div className="field-row">
+              <div className="field">
+                <label>Horizontal — {Math.round(clip.transform.x * 100)}%</label>
+                <input type="range" min={-1} max={1} step={0.01} value={clip.transform.x}
+                  onChange={(e) => onChangeClip(clip.id, { transform: { ...clip.transform, x: Number(e.target.value) } })} />
+              </div>
+              <div className="field">
+                <label>Vertical — {Math.round(clip.transform.y * 100)}%</label>
+                <input type="range" min={-1} max={1} step={0.01} value={clip.transform.y}
+                  onChange={(e) => onChangeClip(clip.id, { transform: { ...clip.transform, y: Number(e.target.value) } })} />
+              </div>
+            </div>
+            <div className="field">
+              <label>Rotation — {clip.transform.rotation}°</label>
+              <input type="range" min={-180} max={180} step={1} value={clip.transform.rotation}
+                onChange={(e) => onChangeClip(clip.id, { transform: { ...clip.transform, rotation: Number(e.target.value) } })} />
+            </div>
+            <div className="field-row">
+              <div className="field">
+                <label>
+                  <input type="checkbox" checked={clip.transform.flipH}
+                    onChange={(e) => onChangeClip(clip.id, { transform: { ...clip.transform, flipH: e.target.checked } })} />{' '}
+                  Flip horizontally
+                </label>
+              </div>
+              <div className="field">
+                <label>Blend mode</label>
+                <select value={clip.blendMode} onChange={(e) => onChangeClip(clip.id, { blendMode: e.target.value as Clip['blendMode'] })}>
+                  <option value="normal">Normal</option>
+                  <option value="multiply">Multiply</option>
+                  <option value="screen">Screen</option>
+                  <option value="overlay">Overlay</option>
+                  <option value="lighten">Lighten</option>
+                  <option value="darken">Darken</option>
+                  <option value="color-dodge">Color dodge</option>
+                  <option value="soft-light">Soft light</option>
+                  <option value="hard-light">Hard light</option>
+                  <option value="difference">Difference</option>
+                  <option value="exclusion">Exclusion</option>
+                  <option value="hue">Hue</option>
+                  <option value="saturation">Saturation</option>
+                  <option value="color">Color</option>
+                  <option value="luminosity">Luminosity</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="field-group-title">Mask</div>
+            <div className="field-row">
+              <div className="field">
+                <label>Shape</label>
+                <select value={clip.mask.type} onChange={(e) => onChangeClip(clip.id, { mask: { ...clip.mask, type: e.target.value as Clip['mask']['type'] } })}>
+                  <option value="none">None</option>
+                  <option value="circle">Circle</option>
+                  <option value="rect">Rectangle</option>
+                  <option value="linear">Linear gradient</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>Feather — {clip.mask.feather.toFixed(2)}</label>
+                <input type="range" min={0} max={1} step={0.01} value={clip.mask.feather}
+                  onChange={(e) => onChangeClip(clip.id, { mask: { ...clip.mask, feather: Number(e.target.value) } })} />
+              </div>
+            </div>
+            {clip.mask.type === 'linear' && (
+              <div className="field">
+                <label>Angle — {clip.mask.angle}°</label>
+                <input type="range" min={0} max={360} step={1} value={clip.mask.angle}
+                  onChange={(e) => onChangeClip(clip.id, { mask: { ...clip.mask, angle: Number(e.target.value) } })} />
+              </div>
+            )}
+            {clip.mask.type !== 'none' && (
+              <div className="field">
+                <label>
+                  <input type="checkbox" checked={clip.mask.invert}
+                    onChange={(e) => onChangeClip(clip.id, { mask: { ...clip.mask, invert: e.target.checked } })} />{' '}
+                  Invert mask (keep outside)
+                </label>
+              </div>
+            )}
+
+            <div className="field-group-title">Chroma key (green screen)</div>
+            <div className="field">
+              <label>
+                <input type="checkbox" checked={clip.chroma.enabled}
+                  onChange={(e) => onChangeClip(clip.id, { chroma: { ...clip.chroma, enabled: e.target.checked } })} />{' '}
+                Enable chroma key
+              </label>
+            </div>
+            {clip.chroma.enabled && (
+              <>
+                <div className="field-row">
+                  <div className="field">
+                    <label>Key color</label>
+                    <div className="color-input">
+                      <input type="color" value={clip.chroma.color} onChange={(e) => onChangeClip(clip.id, { chroma: { ...clip.chroma, color: e.target.value } })} />
+                      <span style={{ fontSize: 12, color: 'var(--muted)' }}>{clip.chroma.color}</span>
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label>
+                      <input type="checkbox" checked={clip.chroma.despill}
+                        onChange={(e) => onChangeClip(clip.id, { chroma: { ...clip.chroma, despill: e.target.checked } })} />{' '}
+                      Despill edges
+                    </label>
+                  </div>
+                </div>
+                <div className="field">
+                  <label>Similarity — {clip.chroma.similarity.toFixed(2)}</label>
+                  <input type="range" min={0.02} max={0.8} step={0.01} value={clip.chroma.similarity}
+                    onChange={(e) => onChangeClip(clip.id, { chroma: { ...clip.chroma, similarity: Number(e.target.value) } })} />
+                </div>
+                <div className="field">
+                  <label>Smoothness — {clip.chroma.smoothness.toFixed(2)}</label>
+                  <input type="range" min={0.02} max={0.6} step={0.01} value={clip.chroma.smoothness}
+                    onChange={(e) => onChangeClip(clip.id, { chroma: { ...clip.chroma, smoothness: Number(e.target.value) } })} />
+                </div>
+                <p className="muted-note">Chroma keying processes pixels on the CPU each frame — expect slower scrubbing on long clips.</p>
+              </>
+            )}
             <div className="field">
               <label>Speed — {clip.speed.toFixed(2)}×</label>
               <input type="range" min={0.25} max={2} step={0.25} value={clip.speed}
@@ -144,6 +271,17 @@ export default function Inspector({
                   }} />
               </div>
             </div>
+            <div className="field">
+              <label>Scale at playhead — {(clip.keyframes?.scale?.find((f) => Math.abs(f.t - (currentTime - clip.start)) < 0.02)?.value ?? clip.transform.scale).toFixed(2)}×</label>
+              <input type="number" min={0.1} max={3} step={0.05}
+                value={(clip.keyframes?.scale?.find((f) => Math.abs(f.t - (currentTime - clip.start)) < 0.02)?.value ?? clip.transform.scale).toFixed(2)}
+                onChange={(e) => {
+                  const t = Math.max(0, Math.min(clip.duration, currentTime - clip.start));
+                  const value = Math.max(0.1, Math.min(3, num(e.target.value, clip.transform.scale)));
+                  const frames = [...(clip.keyframes?.scale ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value }];
+                  onChangeClip(clip.id, { keyframes: { ...clip.keyframes, scale: frames } });
+                }} />
+            </div>
             <div className="field-row">
               <button className="btn small ghost" type="button" onClick={() => {
                 const t = Math.max(0, Math.min(clip.duration, currentTime - clip.start));
@@ -152,6 +290,7 @@ export default function Inspector({
                     ...clip.keyframes,
                     volume: [...(clip.keyframes?.volume ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value: clip.volume }],
                     opacity: [...(clip.keyframes?.opacity ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value: 1 }],
+                    scale: [...(clip.keyframes?.scale ?? []).filter((f) => Math.abs(f.t - t) >= 0.02), { t, value: clip.transform.scale }],
                   },
                 });
               }}>Add at playhead</button>
@@ -162,6 +301,7 @@ export default function Inspector({
                     ...clip.keyframes,
                     volume: clip.keyframes?.volume?.filter((f) => Math.abs(f.t - t) >= 0.02),
                     opacity: clip.keyframes?.opacity?.filter((f) => Math.abs(f.t - t) >= 0.02),
+                    scale: clip.keyframes?.scale?.filter((f) => Math.abs(f.t - t) >= 0.02),
                   },
                 });
               }}>Remove at playhead</button>
@@ -203,6 +343,9 @@ export default function Inspector({
                   else if (value === 'neon') onChangeClip(clip.id, { filter: { brightness: 1.01, contrast: 1.28, saturation: 1.45, hue: 0, blur: 0, sepia: 0, grayscale: 0 } });
                   else if (value === 'portrait') onChangeClip(clip.id, { filter: { brightness: 1.03, contrast: 0.98, saturation: 0.92, hue: 0, blur: 0.2, sepia: 0.02, grayscale: 0 } });
                   else if (value === 'fade') onChangeClip(clip.id, { filter: { brightness: 1.06, contrast: 0.88, saturation: 0.75, hue: 0, blur: 0, sepia: 0.15, grayscale: 0 } });
+                  else if (value === 'teal-orange') onChangeClip(clip.id, { filter: { brightness: 1.02, contrast: 1.18, saturation: 1.15, hue: 8, blur: 0, sepia: 0.06, grayscale: 0 } });
+                  else if (value === 'vintage') onChangeClip(clip.id, { filter: { brightness: 0.94, contrast: 0.92, saturation: 0.68, hue: 12, blur: 0.3, sepia: 0.35, grayscale: 0.08 } });
+                  else if (value === 'vibrant') onChangeClip(clip.id, { filter: { brightness: 1.05, contrast: 1.15, saturation: 1.5, hue: 0, blur: 0, sepia: 0, grayscale: 0 } });
                 }}
               >
                 <option value="custom">Custom</option>
@@ -214,6 +357,9 @@ export default function Inspector({
                 <option value="neon">Neon</option>
                 <option value="portrait">Portrait</option>
                 <option value="fade">Faded</option>
+                <option value="teal-orange">Teal &amp; orange</option>
+                <option value="vintage">Vintage</option>
+                <option value="vibrant">Vibrant</option>
               </select>
             </div>
             <button

@@ -14,6 +14,7 @@ interface Props {
   onExportMp4: (quality: ExportQuality, bitrate: number) => void;
   onCancelExport: () => void;
   onAddText: () => void;
+  onAddSticker?: (emoji: string) => void;
   onHome?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -35,7 +36,7 @@ export type ExportQuality = '720p' | '1080p' | '4K';
 
 export default function TopBar({
   projectName, onProjectNameChange, aspect, onAspectChange, onExport, onExportMp4,
-  onCancelExport, onAddText, onHome, onUndo, onRedo, onSaveProject, onSaveToRecent,
+  onCancelExport, onAddText, onAddSticker, onHome, onUndo, onRedo, onSaveProject, onSaveToRecent,
   onLoadProject, exportProgress, mp4Busy, canExport, defaultExportFormat = 'webm',
   storageStatus, onImportCaptions, onExportCaptions, saveState = 'saved', onCommandPalette,
 }: Props) {
@@ -44,6 +45,7 @@ export default function TopBar({
   const [bitrate, setBitrate] = useState(8_000_000);
   const [showExport, setShowExport] = useState(false);
   const [showMore, setShowMore] = useState(false);
+  const [showStickers, setShowStickers] = useState(false);
   const exporting = exportProgress !== null || mp4Busy;
   const statusLabel = { saved: 'Saved', saving: 'Saving…', unsaved: 'Unsaved changes', failed: 'Save failed' }[saveState];
   const storageLabel = storageStatus?.available
@@ -69,6 +71,34 @@ export default function TopBar({
           {onUndo && <button className="btn ghost small" onClick={onUndo} title="Undo (Ctrl+Z)">Undo</button>}
           {onRedo && <button className="btn ghost small" onClick={onRedo} title="Redo (Ctrl+Shift+Z)">Redo</button>}
           <button className="btn ghost small" onClick={onAddText}><TypeIcon size={15} />Text</button>
+          {onAddSticker && (
+            <div className="sticker-wrap">
+              <button
+                className={`btn ghost small${showStickers ? ' active' : ''}`}
+                onClick={() => setShowStickers((value) => !value)}
+                aria-expanded={showStickers}
+                aria-haspopup="menu"
+                title="Add an emoji sticker to the canvas"
+              >
+                Sticker ▾
+              </button>
+              {showStickers && (
+                <div className="sticker-menu" role="menu">
+                  {['😀', '😂', '🥹', '😍', '🤩', '😎', '🥳', '🔥', '⭐', '❤️', '💯', '👍', '🎉', '✨'].map((emoji) => (
+                    <button
+                      key={emoji}
+                      role="menuitem"
+                      className="sticker-item"
+                      onClick={() => { onAddSticker(emoji); setShowStickers(false); }}
+                      title={`Add ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         {storageStatus && <div className={`storage-indicator ${storageStatus.isLow ? 'warning' : ''}`} title={storageLabel}><span className="storage-dot" /><span>{storageLabel}</span></div>}
         <div className="spacer" />

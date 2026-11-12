@@ -35,6 +35,7 @@ interface Props {
   onTrackSettingsChange: (settings: TrackSettingsMap) => void;
   rippleEnabled: boolean;
   onRippleEnabledChange: (enabled: boolean) => void;
+  onDetectBeats?: () => void;
 }
 
 type DragState =
@@ -84,6 +85,7 @@ export default function Timeline({
   onTrackSettingsChange,
   rippleEnabled,
   onRippleEnabledChange,
+  onDetectBeats,
 }: Props) {
   const dragRef = useRef<DragState>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -293,6 +295,7 @@ export default function Timeline({
             Ripple
           </button>
           <button className="timeline-tool" onClick={onAddMarker} title="Add marker at playhead">Marker</button>
+          {onDetectBeats && <button className="timeline-tool" onClick={onDetectBeats} title="Detect music beats and add markers (analyzes the first audio clip)">Beats</button>}
           <button className="timeline-tool" onClick={onSetInPoint} title="Set in point at playhead">I</button>
           <button className="timeline-tool" onClick={onSetOutPoint} title="Set out point at playhead">O</button>
           {(inPoint !== null || outPoint !== null) && <button className="timeline-tool" onClick={onClearRange} title="Clear in and out points">Clear range</button>}

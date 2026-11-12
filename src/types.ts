@@ -39,7 +39,52 @@ export interface ClipFilter {
 export interface ClipKeyframes {
   volume?: { t: number; value: number }[] | undefined;
   opacity?: { t: number; value: number }[] | undefined;
+  scale?: { t: number; value: number }[] | undefined;
 }
+
+/** Picture-in-picture style transform, fractions of the canvas. */
+export interface ClipTransform {
+  scale: number;    // 1 = fill frame per `fit`
+  x: number;        // -1..1, 0 = centered
+  y: number;        // -1..1, 0 = centered
+  rotation: number; // degrees
+  flipH: boolean;
+}
+
+export type BlendMode =
+  | 'normal' | 'multiply' | 'screen' | 'overlay' | 'lighten' | 'darken'
+  | 'color-dodge' | 'soft-light' | 'hard-light' | 'difference' | 'exclusion'
+  | 'hue' | 'saturation' | 'color' | 'luminosity';
+
+export type MaskType = 'none' | 'circle' | 'rect' | 'linear';
+
+export interface ClipMask {
+  type: MaskType;
+  /** 0 = hard edge, 1 = very soft edge */
+  feather: number;
+  /** Keep the area outside the shape instead. */
+  invert: boolean;
+  /** Linear mask angle in degrees (0 = horizontal split from bottom). */
+  angle: number;
+}
+
+export interface ChromaKey {
+  enabled: boolean;
+  /** Key color, hex (#00ff00 style). */
+  color: string;
+  /** 0..1 — how different a pixel must be before it is kept. */
+  similarity: number;
+  /** 0..1 — edge softness band. */
+  smoothness: number;
+  /** Reduce color spill on semi-keyed edges. */
+  despill: boolean;
+}
+
+export const DEFAULT_TRANSFORM: ClipTransform = { scale: 1, x: 0, y: 0, rotation: 0, flipH: false };
+
+export const DEFAULT_MASK: ClipMask = { type: 'none', feather: 0.25, invert: false, angle: 0 };
+
+export const DEFAULT_CHROMA: ChromaKey = { enabled: false, color: '#00b140', similarity: 0.28, smoothness: 0.12, despill: true };
 
 export const DEFAULT_FILTER: ClipFilter = {
   brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0, grayscale: 0,
@@ -62,6 +107,10 @@ export interface Clip {
   muted: boolean;
   fit: 'cover' | 'contain';
   filter: ClipFilter;
+  transform: ClipTransform;
+  blendMode: BlendMode;
+  mask: ClipMask;
+  chroma: ChromaKey;
   speed: number; // 1.0 = normal
   transitionIn: 'none' | 'fade' | 'crossfade' | 'slide' | 'wipe-left' | 'push-up' | 'dissolve' | 'zoom-in';
   transitionOut: 'none' | 'fade';
