@@ -142,6 +142,12 @@ export const FolderIcon = (p: IconProps) => (
   </Base>
 );
 
+export const CloudIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M17.5 19a4.5 4.5 0 0 0 .42-8.98A7 7 0 0 0 4.06 12.2 3.5 3.5 0 0 0 5.5 19z" />
+  </Base>
+);
+
 export const ClockIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="12" cy="12" r="10" />

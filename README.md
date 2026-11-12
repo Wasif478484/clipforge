@@ -82,6 +82,14 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
 The same values must be added to the Vercel project for Preview and Production.
 Never add a Supabase service-role key to frontend environment variables.
 
+### Enable cloud projects
+
+Cloud project storage is opt-in; local IndexedDB projects continue to work without it.
+Apply the migration in `supabase/migrations/20261106220000_project_storage.sql` from
+the Supabase SQL Editor, then set `VITE_SUPABASE_CLOUD_PROJECTS=true` in the
+deployment environment and redeploy. The migration enables Row Level Security so
+authenticated users can only access their own projects.
+
 ## Deploy (Vercel)
 
 ```bash
@@ -103,6 +111,7 @@ npx vercel --prod # production
 - [x] SRT/VTT caption import, preview, project save/load, and export
 - [x] Offline shell, installable web manifest, and service-worker caching
 - [x] Electron IPC file handlers and menu action events
+- [x] Supabase project storage schema with ownership policies and typed client service
 - [ ] Extract the remaining editor callbacks into focused hooks and migrate all App state to the editor store
 - [ ] Server-side render option for faster exports (headless FFmpeg)
 - [ ] Captions (Whisper WASM) and auto-subtitles

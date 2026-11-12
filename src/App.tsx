@@ -10,6 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
+import { cloudProjectsEnabled, saveCloudProject } from './lib/cloudProjects';
 import { loadSettings } from './lib/settings';
 import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
@@ -77,6 +78,8 @@ export default function App() {
   const skipHistoryRef = useRef(false);
   const ffmpegRef = useRef<FFmpeg | null>(null);
   const clipboardRef = useRef<Clip[]>([]);
+  /** Cloud row id for the currently open project (updates the same row on re-save). */
+  const cloudProjectIdRef = useRef<string | undefined>(undefined);
   const stateRef = useRef({ assets, clips, texts, duration: 0, trackSettings });
 
   const interpolateKeyframes = (frames: { t: number; value: number }[] | undefined, t: number, fallback: number): number => {
@@ -697,6 +700,7 @@ export default function App() {
     mediaEls.current.clear();
     revokeAllAssetUrls(stateRef.current.assets);
     historyRef.current = { past: [], present: '', future: [] };
+    cloudProjectIdRef.current = undefined;
     setAssets([]);
     setClips([]);
     setTexts([]);
@@ -1182,8 +1186,30 @@ export default function App() {
         assets: storedAssets,
       };
       await putRecentProject(entry);
+
+      // Opt-in cloud sync (VITE_SUPABASE_CLOUD_PROJECTS=true + signed-in user).
+      // Snapshot-only: media re-imports on open, matching v1 project files.
+      let cloudNote = '';
+      if (cloudProjectsEnabled) {
+        try {
+          const cloudInput: Parameters<typeof saveCloudProject>[0] = {
+            name,
+            aspect: asp,
+            snapshot: { version: 2, name, aspect: asp, clips: clipList, texts: textList, captions, markers, inPoint, outPoint, trackSettings },
+            ...(thumbnail ? { thumbnail } : {}),
+          };
+          if (cloudProjectIdRef.current) cloudInput.id = cloudProjectIdRef.current;
+          const saved = await saveCloudProject(cloudInput);
+          cloudProjectIdRef.current = saved.id;
+          cloudNote = ' Synced to cloud.';
+        } catch (err) {
+          console.error(err);
+          cloudNote = ' Cloud sync failed — saved locally only.';
+        }
+      }
+
       setSaveState('saved');
-      showToast('Saved to dashboard — reopen anytime.');
+      showToast(`Saved to dashboard — reopen anytime.${cloudNote}`);
     } catch (err) {
       console.error(err);
       setSaveState('failed');
@@ -1196,6 +1222,8 @@ export default function App() {
       try {
         const parsed = JSON.parse(entry.videoJson) as { name: string; aspect: Aspect; clips: Clip[]; texts: TextOverlay[]; captions?: Caption[]; markers?: TimelineMarker[]; inPoint?: number | null; outPoint?: number | null; trackSettings?: TrackSettingsMap };
         resetProject();
+        // Re-saving a project opened from the cloud updates the same cloud row.
+        cloudProjectIdRef.current = entry.cloudId;
         setProjectName(parsed.name);
         setAspect(parsed.aspect);
         // historyRef was cleared by resetProject; re-seed with the loaded project

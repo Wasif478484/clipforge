@@ -7,6 +7,7 @@ import {
 } from '../lib/recent';
 import { loadSettings, resetSettings, saveSettings, type ClipForgeSettings } from '../lib/settings';
 import { animate, stagger } from 'animejs';
+import { cloudProjectsEnabled, deleteCloudProject, listCloudProjects, type CloudProject } from '../lib/cloudProjects';
 import ExportLoader from './ExportLoader';
 import {
   FilmIcon,
@@ -16,6 +17,7 @@ import {
   TypeIcon,
   TrashIcon,
   FolderIcon,
+  CloudIcon,
   ClockIcon,
   SparklesIcon,
   InfoIcon,
@@ -102,8 +104,48 @@ export default function Dashboard({
   const [query, setQuery] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [settings, setSettingsState] = useState<ClipForgeSettings>(() => loadSettings());
+  const [cloudProjects, setCloudProjects] = useState<CloudProject[] | null>(null);
+  const [cloudError, setCloudError] = useState<string | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const [heroVisible, setHeroVisible] = useState(true);
+
+  // Cloud projects load once, only when the deployment opted in.
+  useEffect(() => {
+    if (!cloudProjectsEnabled) return;
+    let active = true;
+    listCloudProjects()
+      .then((rows) => { if (active) setCloudProjects(rows); })
+      .catch((err: unknown) => {
+        if (active) {
+          setCloudProjects([]);
+          setCloudError(err instanceof Error ? err.message : 'Could not load cloud projects.');
+        }
+      });
+    return () => { active = false; };
+  }, []);
+
+  /** Open a cloud project by mapping its snapshot onto the local open path. */
+  const openCloudProject = useCallback((project: CloudProject) => {
+    onOpenRecent({
+      id: project.id,
+      name: project.name,
+      kind: 'video',
+      createdAt: Date.parse(project.createdAt),
+      updatedAt: Date.parse(project.updatedAt),
+      thumbnail: project.thumbnail ?? undefined,
+      videoJson: JSON.stringify(project.snapshot),
+      cloudId: project.id,
+    });
+  }, [onOpenRecent]);
+
+  const removeCloudProject = useCallback(async (id: string) => {
+    try {
+      await deleteCloudProject(id);
+      setCloudProjects((previous) => (previous ?? []).filter((project) => project.id !== id));
+    } catch (err) {
+      setCloudError(err instanceof Error ? err.message : 'Could not delete the cloud project.');
+    }
+  }, []);
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -326,6 +368,43 @@ export default function Dashboard({
             </div>
           )}
         </section>
+
+        {/* Cloud projects — only when the deployment opted in */}
+        {cloudProjectsEnabled && (
+          <section className="studio-section" aria-labelledby="cloud-title">
+            <div className="studio-section-head">
+              <h2 id="cloud-title" className="studio-section-title"><CloudIcon size={13} strokeWidth={2} /> Cloud projects</h2>
+              <span className="studio-section-tag">Synced across sign-ins</span>
+            </div>
+            {cloudError && <div className="studio-empty">Cloud projects are unavailable: {cloudError}</div>}
+            {cloudProjects !== null && cloudProjects.length === 0 && !cloudError && (
+              <div className="studio-empty">No cloud projects yet — save one from the editor.</div>
+            )}
+            {cloudProjects !== null && cloudProjects.length > 0 && (
+              <div className="studio-recent-grid">
+                {cloudProjects.map((project, index) => (
+                  <div key={project.id} className="studio-recent-card animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}>
+                    {project.thumbnail
+                      ? <img className="studio-recent-thumb" src={project.thumbnail} alt={project.name} />
+                      : <div className="studio-recent-thumb studio-recent-blank" aria-hidden="true"><FilmIcon size={22} /></div>}
+                    <div className="studio-recent-body">
+                      <div className="studio-recent-name" title={project.name}>{project.name}</div>
+                      <div className="studio-recent-meta">{project.aspect} · {timeAgo(Date.parse(project.updatedAt))}</div>
+                    </div>
+                    <div className="studio-recent-actions">
+                      <button className="studio-icon-btn" onClick={() => openCloudProject(project)} aria-label={`Open ${project.name}`} title="Open">
+                        <FolderIcon size={16} strokeWidth={1.7} />
+                      </button>
+                      <button className="studio-icon-btn danger" onClick={() => void removeCloudProject(project.id)} aria-label={`Delete ${project.name} from cloud`} title="Delete">
+                        <TrashIcon size={15} strokeWidth={1.7} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Templates */}
         <section className="studio-section" aria-labelledby="templates-title">

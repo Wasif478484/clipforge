@@ -22,6 +22,8 @@ export interface RecentProject {
   videoJson?: string;        // video: JSON project state (name, aspect, clips, texts)
   assets?: StoredAsset[];    // video / audio / image blobs referenced above
   imageBlob?: Blob;          // image: flattened exported file
+  /** Supabase row id when this entry came from (or maps to) cloud projects. */
+  cloudId?: string | undefined;
 }
 
 const DB_NAME = 'clipforge-recent';
