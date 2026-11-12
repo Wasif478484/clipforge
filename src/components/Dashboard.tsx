@@ -7,6 +7,7 @@ import {
 } from '../lib/recent';
 import { loadSettings, resetSettings, saveSettings, type ClipForgeSettings } from '../lib/settings';
 import { animate, stagger } from 'animejs';
+import ExportLoader from './ExportLoader';
 import {
   FilmIcon,
   ImageIcon,
@@ -234,7 +235,7 @@ export default function Dashboard({
             <h2 id="create-title" className="studio-section-title"><PlusIcon size={13} strokeWidth={2.2} /> Create</h2>
           </div>
           <div className="studio-create-grid">
-            <button className="studio-create-card warm" onClick={onNewVideo}>
+            <button className="studio-create-card warm animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: '0ms' }} onClick={onNewVideo}>
               <div className="studio-create-icon"><FilmIcon size={22} strokeWidth={1.5} /></div>
               <div className="studio-create-body">
                 <b>New video project</b>
@@ -242,7 +243,7 @@ export default function Dashboard({
               </div>
               <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </button>
-            <button className="studio-create-card cool" onClick={onNewImage}>
+            <button className="studio-create-card cool animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: '80ms' }} onClick={onNewImage}>
               <div className="studio-create-icon"><ImageIcon size={22} strokeWidth={1.5} /></div>
               <div className="studio-create-body">
                 <b>New image project</b>
@@ -250,7 +251,7 @@ export default function Dashboard({
               </div>
               <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </button>
-            <label className="studio-create-card neutral">
+            <label className="studio-create-card neutral animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: '160ms' }}>
               <input type="file" accept="video/*,audio/*,image/*" multiple hidden
                 onChange={(e) => { if (e.target.files?.length) onImportVideo(e.target.files); e.target.value = ''; }} />
               <div className="studio-create-icon"><WandIcon size={22} strokeWidth={1.5} /></div>
@@ -260,7 +261,7 @@ export default function Dashboard({
               </div>
               <ChevronDownIcon className="studio-create-chev" size={16} strokeWidth={2} />
             </label>
-            <label className="studio-create-card neutral">
+            <label className="studio-create-card neutral animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: '240ms' }}>
               <input type="file" accept="image/*" multiple hidden
                 onChange={(e) => { if (e.target.files?.length) onImportImage(e.target.files); e.target.value = ''; }} />
               <div className="studio-create-icon"><ImageIcon size={22} strokeWidth={1.5} /></div>
@@ -284,7 +285,7 @@ export default function Dashboard({
             )}
           </div>
           {loading ? (
-            <div className="studio-empty">Loading your recent projects…</div>
+            <div className="studio-empty"><ExportLoader size={28} className="studio-empty-loader" /> Loading your recent projects…</div>
           ) : filtered.length === 0 ? (
             <div className="studio-empty big">
               <div className="studio-empty-icon"><FilmIcon size={24} strokeWidth={1.5} /></div>
@@ -294,8 +295,8 @@ export default function Dashboard({
             </div>
           ) : (
             <div className="studio-recent-grid">
-              {filtered.map((r) => (
-                <div key={r.id} className="studio-recent-card">
+              {filtered.map((r, index) => (
+                <div key={r.id} className="studio-recent-card animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}>
                   {r.thumbnail
                     ? <img className="studio-recent-thumb" src={r.thumbnail} alt={r.name} />
                     : <div className="studio-recent-thumb studio-recent-blank" aria-hidden="true">{r.kind === 'video' ? <FilmIcon size={22} /> : <ImageIcon size={22} />}</div>}
@@ -333,8 +334,8 @@ export default function Dashboard({
             <span className="studio-section-tag">Apply to current project</span>
           </div>
           <div className="studio-template-grid">
-            {VIDEO_TEMPLATES.map((t) => (
-              <button key={t.id} className="studio-template" onClick={() => onApplyTemplate(t)}>
+            {VIDEO_TEMPLATES.map((t, index) => (
+              <button key={t.id} className="studio-template animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }} onClick={() => onApplyTemplate(t)}>
                 <div className="studio-template-preview" data-accent={t.id}>
                   <div className="studio-template-letterbox" />
                   <span className="studio-template-tag">{t.tag}</span>

@@ -3,6 +3,7 @@ import { Logo, TypeIcon } from '../icons';
 import { useState } from 'react';
 import type { StorageDiagnostics } from '../lib/storage';
 import { formatBytes } from '../lib/storage';
+import ExportLoader from './ExportLoader';
 
 interface Props {
   projectName: string;
@@ -76,7 +77,9 @@ export default function TopBar({
           {(['16:9', '9:16', '1:1'] as Aspect[]).map((a) => <button key={a} className={aspect === a ? 'active' : ''} onClick={() => onAspectChange(a)}>{a}</button>)}
         </div>
         {exporting && <button className="btn danger small" onClick={onCancelExport}>Cancel</button>}
-        <button className="btn" onClick={() => setShowExport(true)} disabled={!canExport || exporting}>{exporting ? `Exporting… ${Math.round((exportProgress ?? 0) * 100)}%` : 'Export'}</button>
+        <button className="btn" onClick={() => setShowExport(true)} disabled={!canExport || exporting}>
+          {exporting ? <><ExportLoader size={16} /> {Math.round((exportProgress ?? 0) * 100)}%</> : 'Export'}
+        </button>
         <button className="btn ghost small more-button" onClick={() => setShowMore((value) => !value)} aria-expanded={showMore} aria-label="More project actions">•••</button>
         {showMore && (
           <div className="topbar-menu">

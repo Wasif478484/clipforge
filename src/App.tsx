@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import TopBar, { type ExportQuality } from './components/TopBar';
 import MediaPanel from './components/MediaPanel';
 import Stage from './components/Stage';
@@ -1590,7 +1591,12 @@ export default function App() {
 
   return (
     <AuthGate>
-      <div className="app">
+      <motion.div
+        className="app"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 0.8, 0.26, 1] }}
+      >
       <TopBar
         projectName={projectName}
         onProjectNameChange={setProjectName}
@@ -1688,10 +1694,41 @@ export default function App() {
         <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, inspector: !p.inspector }))}>{collapsedPanels.inspector ? 'Show inspector' : 'Hide inspector'}</button>
         <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, timeline: !p.timeline }))}>{collapsedPanels.timeline ? 'Show timeline' : 'Hide timeline'}</button>
       </div>
-      {toast && <div className="toast" role="status">{toast}</div>}
-      {commandOpen && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setCommandOpen(false); }}>
-          <section className="modal command-palette" role="dialog" aria-modal="true" aria-labelledby="command-title">
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            className="toast"
+            role="status"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.25, ease: [0.22, 0.8, 0.26, 1] }}
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {commandOpen && (
+          <motion.div
+            className="modal-backdrop"
+            role="presentation"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onMouseDown={(e) => { if (e.target === e.currentTarget) setCommandOpen(false); }}
+          >
+            <motion.section
+              className="modal command-palette"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="command-title"
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 6 }}
+              transition={{ duration: 0.22, ease: [0.22, 0.8, 0.26, 1] }}
+            >
             <h2 id="command-title">Command palette</h2>
             <p className="muted-note">Searchless quick actions for the editor.</p>
             <div className="command-list">
@@ -1703,10 +1740,11 @@ export default function App() {
               <button onClick={() => { void saveToRecent(); setCommandOpen(false); }}>Save to recents <span>Ctrl+S</span></button>
               <button onClick={() => { setCommandOpen(false); setTimeout(() => document.querySelector<HTMLButtonElement>('.topbar .btn:not(.ghost)')?.click(), 0); }}>Open export <span>Export</span></button>
             </div>
-          </section>
-        </div>
-      )}
-      </div>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      </motion.div>
     </AuthGate>
   );
 }

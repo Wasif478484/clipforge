@@ -1,4 +1,7 @@
-import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useLayoutEffect, useEffect, useRef, useState } from 'react';
+import { animate, stagger } from 'animejs';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   Logo,
   FilmIcon,
@@ -27,6 +30,44 @@ interface Props {
 export default function LandingPage({ onLaunchEditor, onOpenProjects }: Props) {
   const termRef = useRef<HTMLDivElement>(null);
   const [fxPaused, setFxPaused] = useState(false);
+
+  // Hero entrance — anime.js stagger (skipped for reduced-motion users).
+  useLayoutEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const targets = [
+      '.hero h1', '.hero__lead', '.hero .btn-row', '.hero__proof', '.hero__art',
+    ].map((selector) => document.querySelector<HTMLElement>(selector)).filter((el) => el !== null);
+    if (targets.length === 0) return;
+    targets.forEach((el) => { el.style.opacity = '0'; });
+    const handle = animate(targets, {
+      opacity: [0, 1],
+      translateY: [20, 0],
+      duration: 720,
+      delay: stagger(90),
+      ease: 'out(3)',
+    });
+    return () => { handle?.pause?.(); targets.forEach((el) => { el.style.opacity = ''; }); };
+  }, []);
+
+  // Scroll reveals + closing-footer parallax — GSAP ScrollTrigger.
+  useLayoutEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    gsap.registerPlugin(ScrollTrigger);
+    const ctx = gsap.context(() => {
+      gsap.utils.toArray<HTMLElement>('.section-head, .lede, .tool, .app-frame, .local__text, .local__term, .faq__item, .closing__copy, .closing__action').forEach((el) => {
+        gsap.from(el, {
+          y: 28, opacity: 0, duration: 0.8, ease: 'power3.out',
+          scrollTrigger: { trigger: el, start: 'top 88%', once: true },
+        });
+      });
+      gsap.to('.closing__name', {
+        yPercent: 16, ease: 'none',
+        scrollTrigger: { trigger: '.closing', start: 'top bottom', end: 'bottom bottom', scrub: true },
+      });
+    });
+    ScrollTrigger.refresh();
+    return () => { ctx.revert(); ScrollTrigger.getAll().forEach((t) => t.kill()); };
+  }, []);
 
   useEffect(() => {
     const el = termRef.current;
