@@ -85,10 +85,22 @@ Never add a Supabase service-role key to frontend environment variables.
 ### Enable cloud projects
 
 Cloud project storage is opt-in; local IndexedDB projects continue to work without it.
-Apply the migration in `supabase/migrations/20261106220000_project_storage.sql` from
-the Supabase SQL Editor, then set `VITE_SUPABASE_CLOUD_PROJECTS=true` in the
-deployment environment and redeploy. The migration enables Row Level Security so
-authenticated users can only access their own projects.
+Apply both migrations from the Supabase SQL Editor, in order:
+
+1. `supabase/migrations/20261106220000_project_storage.sql` — projects,
+   project_versions and project_assets tables with Row Level Security so
+   authenticated users can only access their own rows.
+2. `supabase/migrations/20261112000000_asset_storage_bucket.sql` — the private
+   `project-assets` storage bucket with owner-only object policies. This is
+   what powers media sync: saving uploads each project's media files (missing
+   ids only, re-saves are cheap), and opening a cloud project downloads them
+   again automatically. Media files live under `<user-id>/<project-id>/` in
+   the bucket; the leading folder must equal the caller's `auth.uid()`.
+   The bucket's per-file size limit is 500 MB — raise it in the SQL if you
+   need longer videos.
+
+Then set `VITE_SUPABASE_CLOUD_PROJECTS=true` in the deployment environment
+and redeploy.
 
 ## Deploy (Vercel)
 

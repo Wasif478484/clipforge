@@ -10,7 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Dashboard, { VIDEO_TEMPLATES } from './components/Dashboard';
 import LandingPage from './landing/LandingPage';
 import { putRecentProject, type RecentProject } from './lib/recent';
-import { cloudProjectsEnabled, saveCloudProject } from './lib/cloudProjects';
+import { cloudProjectsEnabled, fetchProjectAssets, saveCloudProject, syncProjectAssets } from './lib/cloudProjects';
 import { loadSettings } from './lib/settings';
 import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleImage, generateSampleVideo, probeAsset, revokeAssetUrl, revokeAllAssetUrls } from './media';
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
@@ -1442,7 +1442,7 @@ export default function App() {
       await putRecentProject(entry);
 
       // Opt-in cloud sync (VITE_SUPABASE_CLOUD_PROJECTS=true + signed-in user).
-      // Snapshot-only: media re-imports on open, matching v1 project files.
+      // Snapshots are cheap; media files upload incrementally (missing ids only).
       let cloudNote = '';
       if (cloudProjectsEnabled) {
         try {
@@ -1456,6 +1456,12 @@ export default function App() {
           const saved = await saveCloudProject(cloudInput);
           cloudProjectIdRef.current = saved.id;
           cloudNote = ' Synced to cloud.';
+          const cloudAssets = storedAssets.filter((a) => a.blob.size > 0);
+          if (cloudAssets.length > 0) {
+            showToast('Syncing media to cloud…');
+            const { uploaded } = await syncProjectAssets(saved.id, cloudAssets);
+            if (uploaded > 0) cloudNote = ` Synced to cloud (${uploaded} media file${uploaded === 1 ? '' : 's'} uploaded).`;
+          }
         } catch (err) {
           console.error(err);
           cloudNote = ' Cloud sync failed — saved locally only.';
@@ -1478,6 +1484,20 @@ export default function App() {
         resetProject();
         // Re-saving a project opened from the cloud updates the same cloud row.
         cloudProjectIdRef.current = entry.cloudId;
+
+        // Cloud entries carry no blobs locally — fetch the stored media.
+        let assets = entry.assets;
+        if (!assets?.some((a) => a.blob.size > 0) && entry.cloudId && cloudProjectsEnabled) {
+          showToast('Downloading media from cloud…');
+          try {
+            assets = await fetchProjectAssets(entry.cloudId);
+          } catch (err) {
+            console.error(err);
+            showToast('Cloud media could not be downloaded — clips will need re-importing.');
+            assets = [];
+          }
+        }
+
         setProjectName(parsed.name);
         setAspect(parsed.aspect);
         // historyRef was cleared by resetProject; re-seed with the loaded project
@@ -1491,7 +1511,8 @@ export default function App() {
         setCurrentTime(0);
         const hydratedAssets: MediaAsset[] = [];
         const newMediaEls: Array<[string, HTMLVideoElement | HTMLAudioElement | HTMLImageElement]> = [];
-        for (const a of entry.assets ?? []) {
+        for (const a of assets ?? []) {
+          if (a.blob.size === 0) continue;
           const url = URL.createObjectURL(a.blob);
           const m: MediaAsset = { id: a.id, name: a.name, kind: a.kind, url, duration: a.duration, width: a.width, height: a.height };
           hydratedAssets.push(m);
@@ -1506,7 +1527,8 @@ export default function App() {
         setClips(parsed.clips.map(hydrateClip));
         setTexts(parsed.texts);
         setMode('video');
-        showToast('Opened from dashboard.');
+        const missing = parsed.clips.filter((c) => !hydratedAssets.some((a) => a.id === c.assetId)).length;
+        showToast(`Opened from dashboard.${missing > 0 ? ` ${missing} clip(s) need media re-import.` : ''}`);
       } catch (err) {
         console.error(err);
         showToast('Could not restore that project.');

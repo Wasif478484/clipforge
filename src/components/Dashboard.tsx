@@ -374,7 +374,7 @@ export default function Dashboard({
           <section className="studio-section" aria-labelledby="cloud-title">
             <div className="studio-section-head">
               <h2 id="cloud-title" className="studio-section-title"><CloudIcon size={13} strokeWidth={2} /> Cloud projects</h2>
-              <span className="studio-section-tag">Synced across sign-ins</span>
+              <span className="studio-section-tag">Projects and media, synced across sign-ins</span>
             </div>
             {cloudError && <div className="studio-empty">Cloud projects are unavailable: {cloudError}</div>}
             {cloudProjects !== null && cloudProjects.length === 0 && !cloudError && (
