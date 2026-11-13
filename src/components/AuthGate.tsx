@@ -8,6 +8,7 @@ interface Props {
 
 export default function AuthGate({ children }: Props) {
   const [user, setUser] = useState<User | null>(null);
+  const [localMode, setLocalMode] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -30,6 +31,10 @@ export default function AuthGate({ children }: Props) {
     };
   }, []);
 
+  // Deployments without Supabase are local-first: nothing to sign in to.
+  if (!supabaseConfig.configured) return <>{children}</>;
+  // One-click local mode on configured deployments: skip the account entirely.
+  if (localMode) return <>{children}</>;
   if (user) return <>{children}</>;
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -52,31 +57,6 @@ export default function AuthGate({ children }: Props) {
     }
     setBusy(false);
   };
-
-  if (!supabaseConfig.configured) {
-    return (
-      <main className="auth-shell">
-        <div className="auth-pitch">
-          <div className="auth-pitch-brand"><span className="auth-pitch-mark">C</span> ClipForge</div>
-          <div>
-            <span className="auth-kicker">Your creative workspace</span>
-            <h2>Make the cut.<br /><em>Keep control.</em></h2>
-            <p>Save projects across devices while your media stays local to the editor.</p>
-          </div>
-          <div className="auth-pitch-list">
-            <span>Local media processing</span>
-            <span>Cloud project access</span>
-            <span>Open-source and MIT licensed</span>
-          </div>
-        </div>
-        <section className="auth-card">
-          <h1>ClipForge setup required</h1>
-          <p>Cloud authentication is enabled, but Supabase is not configured for this deployment.</p>
-          <p className="muted-note">Add <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code> to the environment, then redeploy.</p>
-        </section>
-      </main>
-    );
-  }
 
   return (
     <main className="auth-shell">
@@ -101,6 +81,11 @@ export default function AuthGate({ children }: Props) {
             {mode === 'signin' ? 'Create an account' : 'Sign in'}
           </button>
         </p>
+        <p className="auth-switch">
+          Just exploring?
+          <button type="button" onClick={() => setLocalMode(true)}>Continue without an account</button>
+        </p>
+        <p className="muted-note">Local mode keeps everything on this device. Cloud projects stay available after signing in.</p>
       </section>
     </main>
   );
