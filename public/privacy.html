@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — ClipForge</title>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      background: #12100d; color: #e8e2d6; margin: 0;
+      font: 16px/1.7 system-ui, -apple-system, 'Segoe UI', sans-serif;
+    }
+    main { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
+    h1 { color: #e6c476; font-size: 2rem; margin: 0 0 4px; }
+    h2 { color: #e6c476; font-size: 1.15rem; margin: 40px 0 8px; }
+    p, li { color: #b9b1a2; }
+    a { color: #e6c476; }
+    .updated { font-size: 0.85rem; color: #8a8272; margin-bottom: 32px; }
+    code { background: #1f1a12; border: 1px solid #3a3226; border-radius: 4px; padding: 1px 6px; font-size: 0.9em; color: #e6c476; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated: November 16, 2026</p>
+
+    <p>ClipForge is a local-first video editor. The short version: <strong>your media never leaves your device unless you explicitly turn on cloud projects and sign in.</strong></p>
+
+    <h2>What stays on your device</h2>
+    <ul>
+      <li>Every video, audio and image file you import is processed entirely in your browser. Rendering and exporting happen on your machine.</li>
+      <li>Projects, recent projects, thumbnails and settings are stored in your browser's IndexedDB storage. Clearing browser data deletes them permanently.</li>
+      <li>The desktop app stores the same data on your local disk.</li>
+    </ul>
+
+    <h2>What we never do</h2>
+    <ul>
+      <li>No advertising, no third-party trackers, no telemetry.</li>
+      <li>No reading of your media files beyond what is required to edit them.</li>
+      <li>No selling or sharing of any personal data, because none is collected.</li>
+    </ul>
+
+    <h2>Optional cloud projects (only if you sign in)</h2>
+    <p>If a deployment enables cloud projects and you choose to create an account and save to the cloud, the following is stored on the deployment operator's Supabase backend:</p>
+    <ul>
+      <li>Your email address (for authentication).</li>
+      <li>Project snapshots: edit data such as clip positions, filters, text overlays and markers — JSON, not media.</li>
+      <li>Project media files — uploaded only when the deployment has media sync enabled, and only for projects you save while signed in.</li>
+      <li>A small project thumbnail.</li>
+    </ul>
+    <p>This data is protected by row-level security: authenticated users can only access their own projects. You can delete any cloud project from the dashboard at any time, which removes its stored media too. Deleting your account removes all associated data.</p>
+
+    <h2>Service providers</h2>
+    <ul>
+      <li><strong>Vercel</strong> hosts the web application. Vercel's own handling of request data is governed by Vercel's privacy policy.</li>
+      <li><strong>Supabase</strong> provides the optional cloud storage backend described above, only for deployments that enable it.</li>
+    </ul>
+
+    <h2>Changes</h2>
+    <p>Material changes to this policy will be reflected on this page. This project is open source under the MIT license — <a href="https://github.com/Wasif478484/clipforge">view the source</a> to verify everything above.</p>
+
+    <h2>Contact</h2>
+    <p>Questions or data requests: open an issue at <a href="https://github.com/Wasif478484/clipforge/issues">github.com/Wasif478484/clipforge/issues</a>.</p>
+
+    <p style="margin-top:48px"><a href="/">&larr; Back to ClipForge</a></p>
+  </main>
+</body>
+</html>

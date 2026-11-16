@@ -361,6 +361,7 @@ export default function LandingPage({ onLaunchEditor, onOpenProjects }: Props) {
                   <li><a href={`${REPO_URL}/releases`}>Releases</a></li>
                   <li><a href={`${REPO_URL}/issues`}>Issues</a></li>
                   <li><a href={`${REPO_URL}/blob/main/LICENSE`}>MIT License</a></li>
+                  <li><a href="/privacy.html">Privacy Policy</a></li>
                 </ul>
               </div>
               <div className="closing__col" />
