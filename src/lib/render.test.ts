@@ -153,7 +153,16 @@ describe('chromaKeyAlpha', () => {
     expect(chromaKeyAlpha(10, 20, 200, kcb, kcr, DEFAULT_SIM, DEFAULT_SMOOTH)).toBe(1);
   });
 
-  it('sits white in the smoothness band at default similarity (not fully kept)', () => {
+  it('keys both ends correctly at the shipped default (0.20)', () => {
+    // The default must fully key the pure green and fully keep white — the
+    // reason the default came down from 0.28.
+    const a = chromaKeyAlpha(255, 255, 255, kcb, kcr, DEFAULT_CHROMA.similarity, DEFAULT_CHROMA.smoothness);
+    const b = chromaKeyAlpha(key.r, key.g, key.b, kcb, kcr, DEFAULT_CHROMA.similarity, DEFAULT_CHROMA.smoothness);
+    expect(a).toBe(1);
+    expect(b).toBe(0);
+  });
+
+  it('sits white in the smoothness band at similarity 0.28 (the old default)', () => {
     // white shares no chroma with the key but sits only ~0.33 away — so with
     // the default similarity 0.28 it is only ~40% opaque. Real behavior to know:
     // white clothing on a green screen needs the similarity slider lowered.

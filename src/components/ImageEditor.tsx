@@ -208,7 +208,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
   useEffect(() => { render(); });
 
   // ---- helpers ----
-  const getCanvasPoint = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     const sx = canvas.width / rect.width;
@@ -219,7 +219,8 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
   const pushHistory = () => {};
 
   // ---- tool handlers ----
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
     const pt = getCanvasPoint(e);
     if (tool === 'crop') {
       setCropRect({ x: pt.x, y: pt.y, w: 0, h: 0 });
@@ -307,7 +308,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing) return;
     const pt = getCanvasPoint(e);
     if (tool === 'crop' && cropRect) {
@@ -352,7 +353,7 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing) return;
     setDrawing(false);
     const pt = getCanvasPoint(e);
@@ -679,10 +680,10 @@ export default function ImageEditor({ initialImage, initialName, onClose, onExpo
           <canvas
             ref={canvasRef}
             style={{ maxWidth: '100%', maxHeight: '100%', cursor: tool === 'brush' || tool === 'eraser' ? 'crosshair' : tool === 'crop' ? 'crosshair' : 'default' }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => { if (drawing) handleMouseUp({} as React.MouseEvent<HTMLCanvasElement>); }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
           />
           {tool === 'crop' && cropRect && cropRect.w !== 0 && (
             <div className="img-crop-actions">

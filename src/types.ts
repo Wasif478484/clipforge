@@ -84,7 +84,10 @@ export const DEFAULT_TRANSFORM: ClipTransform = { scale: 1, x: 0, y: 0, rotation
 
 export const DEFAULT_MASK: ClipMask = { type: 'none', feather: 0.25, invert: false, angle: 0 };
 
-export const DEFAULT_CHROMA: ChromaKey = { enabled: false, color: '#00b140', similarity: 0.28, smoothness: 0.12, despill: true };
+// Similarity floor: pixels closer than this to the key color are fully keyed
+// out. 0.20 keeps white/skin foregrounds fully opaque (their YCbCr distance
+// from chroma green is ~0.33); users keying spill-heavy footage can raise it.
+export const DEFAULT_CHROMA: ChromaKey = { enabled: false, color: '#00b140', similarity: 0.20, smoothness: 0.12, despill: true };
 
 export const DEFAULT_FILTER: ClipFilter = {
   brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0, grayscale: 0,
