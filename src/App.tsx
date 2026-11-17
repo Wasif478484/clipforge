@@ -26,6 +26,7 @@ import { getStorageDiagnostics, type StorageDiagnostics } from './lib/storage';
 import { useEditorStore } from './store/editorStore';
 import { parseCaptions, serializeCaptions } from './lib/captions';
 import type { Caption } from './types';
+import { whisperChunksToCaptions } from './lib/transcribe';
 import AuthGate from './components/AuthGate';
 
 export default function App() {
@@ -49,6 +50,7 @@ export default function App() {
   const [inPoint, setInPoint] = useState<number | null>(null);
   const [outPoint, setOutPoint] = useState<number | null>(null);
   const [captions, setCaptions] = useState<Caption[]>([]);
+  const [autoCaptioning, setAutoCaptioning] = useState(false);
   const [trackSettings, setTrackSettings] = useState<TrackSettingsMap>({});
   const [rippleEnabled, setRippleEnabled] = useState(false);
 
@@ -1020,6 +1022,63 @@ export default function App() {
       showToast('Beat detection failed — the audio could not be decoded.');
     }
   }, [showToast]);
+
+  /**
+   * Auto-captions: transcribe the first unmuted audio-capable clip in-browser
+   * with Whisper (multilingual tiny, ~44 MB, one-time download to the Cache
+   * Storage — nothing ever leaves this machine).
+   */
+  const handleAutoCaptions = useCallback(async () => {
+    if (autoCaptioning) return;
+    const { clips: clipList, assets: assetList, trackSettings: settings } = stateRef.current;
+    const soundClip = clipList
+      .filter((c) => {
+        const kind = assetList.find((a) => a.id === c.assetId)?.kind;
+        return (kind === 'audio' || kind === 'video') && !settings[c.trackId]?.muted;
+      })
+      .sort((a, b) => a.start - b.start)[0];
+    const asset = soundClip && assetList.find((a) => a.id === soundClip.assetId);
+    if (!soundClip || !asset) {
+      showToast('Add an audio or video clip first — captions are transcribed from its sound.');
+      return;
+    }
+    setAutoCaptioning(true);
+    showToast('Transcribing locally — the first run downloads the Whisper model (~44 MB)…');
+    try {
+      const res = await fetch(asset.url);
+      const raw = await res.arrayBuffer();
+      const decodeCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const audioBuf = await decodeCtx.decodeAudioData(raw);
+      void decodeCtx.close();
+      // Whisper expects 16 kHz mono.
+      const resample = new OfflineAudioContext(1, Math.ceil(audioBuf.duration * 16000), 16000);
+      const source = resample.createBufferSource();
+      source.buffer = audioBuf;
+      source.connect(resample.destination);
+      source.start();
+      const mono16k = await resample.startRendering();
+      const samples = mono16k.getChannelData(0);
+
+      const { pipeline } = await import('@xenova/transformers');
+      const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
+      const result = await asr(samples, { return_timestamps: true, chunk_length_s: 30, stride_length_s: 5 }) as {
+        text: string;
+        chunks?: { text: string; timestamp: [number, number | null] }[];
+      };
+      const mapped = whisperChunksToCaptions(result.chunks ?? [], result.text, soundClip);
+      if (mapped.length === 0) {
+        showToast('Whisper heard silence — no captions added.');
+        return;
+      }
+      setCaptions((prev) => [...prev, ...mapped]);
+      showToast(`${mapped.length} caption${mapped.length === 1 ? '' : 's'} added from ${soundClip.name}.`);
+    } catch (err) {
+      console.error(err);
+      showToast('Transcription failed — the audio could not be decoded or the model download was blocked.');
+    } finally {
+      setAutoCaptioning(false);
+    }
+  }, [autoCaptioning, showToast]);
 
   const handleDeleteSelection = useCallback(() => {
     const ids = new Set(selectedIds);
@@ -2002,6 +2061,8 @@ export default function App() {
         rippleEnabled={rippleEnabled}
         onRippleEnabledChange={setRippleEnabled}
         onDetectBeats={() => void handleDetectBeats()}
+        onAutoCaptions={() => void handleAutoCaptions()}
+        autoCaptioning={autoCaptioning}
       />}
       <div className="workspace-dock" aria-label="Workspace panels">
         <button className="btn ghost small" onClick={() => setCollapsedPanels((p) => ({ ...p, media: !p.media }))}>{collapsedPanels.media ? 'Show media' : 'Hide media'}</button>
