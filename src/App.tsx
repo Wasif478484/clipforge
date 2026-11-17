@@ -1416,22 +1416,25 @@ export default function App() {
   }, [showToast, resetProject, setSelection, setProjectName, setClips, setAspect, setTexts, setAssets]);
 
   const applyTemplate = useCallback((template: typeof VIDEO_TEMPLATES[number]) => {
-    const mkText = (text: string, y: number, size: number, color = 'white'): TextOverlay => ({
-      id: uid(), text, x: 0.5, y, size, color, start: 0, duration: 4, animation: 'fade',
+    const mkText = (text: string, y: number, size: number, color: string, animation: TextOverlay['animation']): TextOverlay => ({
+      id: uid(), text, x: 0.5, y, size, color, start: 0, duration: 6, animation,
     });
-    const clips: Clip[] = [];
+    const s = template.scaffold;
+    const titleSize = template.aspect === '16:9' ? 88 : template.aspect === '1:1' ? 66 : 54;
     const texts = [
-      mkText(template.name, 0.18, 88, 'white'),
-      mkText('Replace with your footage — press Save to pin it to the dashboard', 0.84, 30, 'white'),
+      mkText(s.kicker, 0.295, 20, s.accent, 'fade'),
+      mkText(s.title, 0.44, titleSize, '#ffffff', 'scale-in'),
+      mkText(s.subtitle, 0.59, 25, '#d8d8d8', 'fade'),
+      mkText(s.handle.toUpperCase(), 0.92, 16, s.accent, 'none'),
     ];
     setProjectName(template.name);
     setAspect(template.aspect);
-    setClips(clips);
+    setClips([]);
     setTexts(texts);
     setSelection(null);
     setCurrentTime(0);
     setMode('video');
-    showToast('Template applied — add your media to make it yours.');
+    showToast('Template applied — replace the sample copy and drop in your media.');
   }, [showToast, setProjectName, setAspect, setClips, setTexts, setSelection]);
 
   const saveImageToRecent = useCallback(async (name: string, blob: Blob) => {

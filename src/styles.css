@@ -619,8 +619,10 @@ button:disabled { cursor: default; }
 .studio-template-preview[data-accent="reel"],
 .studio-template-preview[data-accent="vertical"] { background: var(--surface-3); }
 .studio-template-preview[data-accent="square"] { background: var(--surface-3); }
-.studio-template-preview { position: relative; height: 78px; }
-.studio-template-letterbox { position: absolute; bottom: 0; left: 0; right: 0; height: 14px; background: rgba(0,0,0,0.7); }
+.studio-template-preview { position: relative; height: 78px; overflow: hidden; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.studio-template-kicker { font-size: 8px; font-weight: 800; letter-spacing: 0.18em; opacity: 0.9; }
+.studio-template-title { font-size: 15px; font-weight: 900; color: #ffffff; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.studio-template-letterbox { position: absolute; bottom: 0; left: 0; right: 0; height: 8px; background: rgba(0,0,0,0.7); }
 .studio-template-tag { position: absolute; top: 8px; right: 10px; font-size: 9px; font-weight: 800; letter-spacing: 0.1em; color: var(--accent); background: rgba(20,16,24,0.6); padding: 2px 6px; border-radius: 4px; }
 .studio-template-body { padding: 10px; display: flex; flex-direction: column; gap: 4px; }
 .studio-template-body b { font-size: 12px; font-weight: 800; }

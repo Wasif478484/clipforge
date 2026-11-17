@@ -402,6 +402,8 @@ export default function Dashboard({
               <button key={t.id} className="studio-template animate__animated animate__faster animate__fadeInUp" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }} onClick={() => onApplyTemplate(t)}>
                 <div className="studio-template-preview" data-accent={t.id}>
                   <div className="studio-template-letterbox" />
+                  <span className="studio-template-kicker" style={{ color: t.scaffold.accent }}>{t.scaffold.kicker}</span>
+                  <span className="studio-template-title">{t.scaffold.title}</span>
                   <span className="studio-template-tag">{t.tag}</span>
                 </div>
                 <div className="studio-template-body">
