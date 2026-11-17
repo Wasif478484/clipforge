@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   chromaKeyAlpha,
+  clipVolumeAt,
   despillPixel,
   getSharedCanvas,
   hexToRgb,
@@ -222,8 +223,49 @@ describe('despillPixel', () => {
   });
 });
 
-describe('getSharedCanvas', () => {
-  it('reuses the same canvas per slot and sizes it', () => {
+describe('clipVolumeAt', () => {
+  const clip = (over: Partial<Parameters<typeof clipVolumeAt>[0]>): Parameters<typeof clipVolumeAt>[0] =>
+    hydrateClip({ id: 'c', volume: 1, ...over }) as Parameters<typeof clipVolumeAt>[0];
+
+  it('returns the raw clip volume when nothing fades or animates', () => {
+    expect(clipVolumeAt(clip({ volume: 0.7 }), 0)).toBe(0.7);
+    expect(clipVolumeAt(clip({ volume: 0.7 }), 3.9)).toBe(0.7);
+  });
+
+  it('ramps linearly across the fade-in window', () => {
+    const c = clip({ volume: 1, volumeFadeIn: 1, duration: 4 });
+    expect(clipVolumeAt(c, 0)).toBe(0);
+    expect(clipVolumeAt(c, 0.5)).toBeCloseTo(0.5);
+    expect(clipVolumeAt(c, 1)).toBeCloseTo(1);
+    expect(clipVolumeAt(c, 3)).toBeCloseTo(1);
+  });
+
+  it('ramps linearly across the fade-out window', () => {
+    const c = clip({ volume: 1, volumeFadeOut: 1, duration: 4 });
+    expect(clipVolumeAt(c, 2.5)).toBeCloseTo(1);
+    expect(clipVolumeAt(c, 3.5)).toBeCloseTo(0.5);
+    expect(clipVolumeAt(c, 4)).toBe(0);
+  });
+
+  it('combines volume keyframes with fades multiplicatively', () => {
+    const c = clip({
+      volume: 0.5,
+      volumeFadeIn: 2,
+      duration: 4,
+      keyframes: { volume: [{ t: 0, value: 0.2 }, { t: 2, value: 1 }] },
+    });
+    // elapsed 1: keyframe interp = 0.6, fade factor = 0.5 → 0.5 * 0.6 * 0.5
+    expect(clipVolumeAt(c, 1)).toBeCloseTo(0.5 * 0.6 * 0.5);
+  });
+
+  it('never goes negative near clip edges', () => {
+    const c = clip({ volume: 1, volumeFadeIn: 2, volumeFadeOut: 2, duration: 4 });
+    expect(clipVolumeAt(c, 0)).toBeGreaterThanOrEqual(0);
+    expect(clipVolumeAt(c, 4)).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('getSharedCanvas', () => {  it('reuses the same canvas per slot and sizes it', () => {
     const a = getSharedCanvas('clip', 64, 32);
     expect(a.width).toBe(64);
     expect(a.height).toBe(32);

@@ -17,7 +17,8 @@ import { captureAssetThumb, createMediaElement, blobToDataURL, generateSampleIma
 import { clamp, downloadBlob, pickSupportedMime, uid } from './util';
 import type { Aspect, Clip, MediaAsset, MediaKind, Selection, TextOverlay, TimelineMarker, TrackSettingsMap } from './types';
 import { CANVAS_SIZE, DEFAULT_CHROMA, DEFAULT_FILTER, DEFAULT_MASK, DEFAULT_TRANSFORM } from './types';
-import { applyChromaKey, applyClipMask, getSharedCanvas, hydrateClip, interpolateKeyframes } from './lib/render';
+import { applyChromaKey, applyClipMask, clipVolumeAt, getSharedCanvas, hydrateClip, interpolateKeyframes } from './lib/render';
+import { exportTimelineMp4 } from './lib/exporter';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { parseProjectData } from './lib/project';
@@ -1472,6 +1473,131 @@ export default function App() {
     return canvas;
   }, [aspect]);
 
+  /* ---------------------------------------- offline (WebCodecs) MP4 export ---------------------------------------- */
+
+  /** Seek every active video element to its exact source time for `t`, then composite. */
+  const seekAndDraw = useCallback(async (t: number) => {
+    const { clips: clipList, assets: assetList } = stateRef.current;
+    const seeks: Promise<void>[] = [];
+    for (const clip of clipList) {
+      if (t < clip.start || t >= clip.start + clip.duration) continue;
+      const asset = assetList.find((a) => a.id === clip.assetId);
+      if (!asset || asset.kind === 'image') continue;
+      const el = mediaEls.current.get(clip.assetId);
+      if (!(el instanceof HTMLVideoElement)) continue;
+      if (!el.paused) el.pause();
+      const target = Math.min(clip.trimStart + (t - clip.start) * clip.speed, Math.max(0, asset.duration - 0.05));
+      if (Math.abs(el.currentTime - target) < 0.002) continue;
+      seeks.push(new Promise<void>((resolve) => {
+        const done = () => { el.removeEventListener('seeked', done); clearTimeout(timer); resolve(); };
+        // A stuck element must not hang the export; draw whatever it shows.
+        const timer = setTimeout(done, 2000);
+        el.addEventListener('seeked', done);
+        el.currentTime = target;
+      }));
+    }
+    await Promise.all(seeks);
+    drawFrame(t);
+  }, [drawFrame]);
+
+  /** Render the full timeline audio offline (decode + mix + envelopes). */
+  const renderAudioOffline = useCallback(async (): Promise<AudioBuffer | null> => {
+    const { clips: clipList, assets: assetList, trackSettings } = stateRef.current;
+    const audible = clipList.filter((c) => !c.muted && !trackSettings[c.trackId]?.muted);
+    if (audible.length === 0) return null;
+    const decodeCtx = new AudioContext({ sampleRate: 48000 });
+    try {
+      const buffers = new Map<string, AudioBuffer | null>();
+      await Promise.all(audible.map(async (clip) => {
+        if (buffers.has(clip.assetId)) return;
+        const asset = assetList.find((a) => a.id === clip.assetId);
+        if (!asset) { buffers.set(clip.assetId, null); return; }
+        try {
+          const res = await fetch(asset.url);
+          buffers.set(clip.assetId, await decodeCtx.decodeAudioData(await res.arrayBuffer()));
+        } catch {
+          buffers.set(clip.assetId, null); // video with no audio track, or unsupported codec
+        }
+      }));
+      if (!audible.some((c) => buffers.get(c.assetId))) return null;
+
+      const dur = stateRef.current.duration;
+      const off = new OfflineAudioContext(2, Math.ceil(Math.max(dur, 0.1) * 48000), 48000);
+      for (const clip of audible) {
+        const buffer = buffers.get(clip.assetId);
+        if (!buffer) continue;
+        const src = off.createBufferSource();
+        src.buffer = buffer;
+        // shortcut: speed ≠ 1 resamples the audio (pitch shifts); live preview scrubs instead — only differs for retimed clips
+        src.playbackRate.value = clip.speed;
+        const gain = off.createGain();
+        const envelope = (elapsed: number) => Math.max(0, clipVolumeAt(clip, elapsed));
+        // 100 ms linear ramps approximate the keyframe/fade envelope; a constant
+        // clip gets a single point (no staircase, no per-sample events).
+        gain.gain.setValueAtTime(envelope(0), clip.start);
+        if (clip.volumeFadeIn > 0 || clip.volumeFadeOut > 0 || clip.keyframes?.volume?.length) {
+          for (let s = 0.1; s < clip.duration; s += 0.1) {
+            gain.gain.linearRampToValueAtTime(envelope(s), clip.start + s);
+          }
+          gain.gain.linearRampToValueAtTime(envelope(clip.duration), clip.start + clip.duration);
+        }
+        src.connect(gain).connect(off.destination);
+        src.start(clip.start, Math.min(clip.trimStart, Math.max(0, buffer.duration - 0.05)), clip.duration * clip.speed);
+      }
+      return await off.startRendering();
+    } finally {
+      void decodeCtx.close().catch(() => undefined);
+    }
+  }, []);
+
+  /** Try the offline WebCodecs MP4 export. true = handled (done/cancelled/failed-fast), false = unsupported. */
+  const tryOfflineMp4Export = useCallback(async (quality: ExportQuality, bitrate: number): Promise<boolean> => {
+    const dur = stateRef.current.duration;
+    const canvas = prepareExportCanvas(quality);
+    if (!canvas) return true;
+    try {
+      showToast('Rendering MP4 as fast as your machine allows…');
+      setExportProgress(0);
+      const result = await exportTimelineMp4({
+        canvas,
+        width: canvas.width,
+        height: canvas.height,
+        duration: dur,
+        fps: 30,
+        bitrate,
+        seekAndDraw,
+        renderAudio: renderAudioOffline,
+        isCancelled: () => exportCancelledRef.current,
+        onProgress: (p) => setExportProgress(p),
+      });
+      if (result.status === 'unsupported') {
+        exportCanvasRef.current = null;
+        return false; // caller falls back to the recorder + ffmpeg path
+      }
+      if (result.status === 'cancelled') {
+        setExportProgress(null);
+        exportCanvasRef.current = null;
+        drawAndSync(currentTimeRef.current, false);
+        return true; // cancelExport already toasted
+      }
+      setExportProgress(null);
+      exportCanvasRef.current = null;
+      drawAndSync(currentTimeRef.current, false);
+      const base = projectName.trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80) || 'clipforge';
+      downloadBlob(result.blob, `${base}.mp4`);
+      showToast(`Exported MP4 ${(result.blob.size / 1_000_000).toFixed(1)} MB — check your downloads.`);
+      return true;
+    } catch (err) {
+      if (exportCancelledRef.current) return true;
+      console.error(err);
+      exportCanvasRef.current = null;
+      drawAndSync(currentTimeRef.current, false);
+      showToast('Fast MP4 export failed — falling back to the classic recorder…');
+      return false;
+    }
+  }, [prepareExportCanvas, seekAndDraw, renderAudioOffline, drawAndSync, projectName, showToast]);
+
+
   const handleExport = useCallback((quality: ExportQuality, bitrate: number) => {
     const dur = stateRef.current.duration;
     if (dur <= 0) {
@@ -1538,11 +1664,21 @@ export default function App() {
     }
     setMp4Busy(true);
     exportCancelledRef.current = false;
-    const ctx = ensureAudioGraph();
-    syncAudioGraph();
+    // Freeze preview playback: the offline path drives the same media elements.
     cancelAnimationFrame(rafRef.current);
     playingRef.current = false;
     setPlaying(false);
+    for (const [, el] of mediaEls.current) { if (!(el instanceof HTMLImageElement) && !el.paused) el.pause(); }
+    try {
+      if (await tryOfflineMp4Export(quality, bitrate)) { setMp4Busy(false); return; }
+    } catch (err) {
+      console.error(err);
+      if (exportCancelledRef.current) { setMp4Busy(false); return; }
+      showToast('Fast export failed — falling back to the classic recorder…');
+    }
+    setExportProgress(null);
+    const ctx = ensureAudioGraph();
+    syncAudioGraph();
     currentTimeRef.current = 0;
     setCurrentTime(0);
     const canvas = prepareExportCanvas(quality);
@@ -1606,7 +1742,7 @@ export default function App() {
       setExportProgress(null);
       setMp4Busy(false);
     }
-  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, prepareExportCanvas, projectName, showToast]);
+  }, [drawFrame, ensureAudioGraph, syncAudioGraph, play, prepareExportCanvas, projectName, showToast, tryOfflineMp4Export]);
 
   const cancelExport = useCallback(() => {
     exportCancelledRef.current = true;

@@ -106,6 +106,7 @@
     "animejs": "^4.5.0",
     "gsap": "^3.15.1",
     "lottie-web": "^5.13.0",
+    "mediabunny": "^1.66.0",
     "motion": "^14.13.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

@@ -80,8 +80,7 @@ export function chromaKeyAlpha(
   return Math.max(0, Math.min(1, (dist - sim) / smooth));
 }
 
-/** Reduce green spill on a keyed pixel's edge; returns unchanged rgb when clean. */
-export function despillPixel(r: number, g: number, b: number, alpha: number): [number, number, number] {
+/** Reduce green spill on a keyed pixel's edge; returns unchanged rgb when clean. */export function despillPixel(r: number, g: number, b: number, alpha: number): [number, number, number] {
   const spill = Math.min(g, Math.max(r, b));
   const excess = g - spill;
   if (excess <= 0) return [r, g, b];
@@ -91,6 +90,24 @@ export function despillPixel(r: number, g: number, b: number, alpha: number): [n
     g - excess * (1 - alpha),
     Math.min(255, b + excess * (1 - alpha) * 0.5),
   ];
+}
+
+/**
+ * Per-clip volume envelope `elapsed` seconds into the clip — same math as the
+ * live playback path (applyGains): clip volume × volume keyframes × in/out
+ * volume fades. Mute/track-mute filtering is the caller's job.
+ */
+export function clipVolumeAt(clip: Clip, elapsed: number): number {
+  let vol = clip.volume;
+  vol *= interpolateKeyframes(clip.keyframes?.volume, elapsed, 1);
+  if (clip.volumeFadeIn > 0 && elapsed < clip.volumeFadeIn) {
+    vol *= Math.max(0, elapsed / clip.volumeFadeIn);
+  }
+  const remaining = clip.duration - elapsed;
+  if (clip.volumeFadeOut > 0 && remaining < clip.volumeFadeOut) {
+    vol *= Math.max(0, remaining / clip.volumeFadeOut);
+  }
+  return vol;
 }
 
 /** Chroma-key the pixels of `ctx`'s canvas in place against `chroma.color` (YCbCr distance). */
