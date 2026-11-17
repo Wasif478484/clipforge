@@ -27,6 +27,9 @@ import { useEditorStore } from './store/editorStore';
 import { parseCaptions, serializeCaptions } from './lib/captions';
 import type { Caption } from './types';
 import { whisperChunksToCaptions } from './lib/transcribe';
+import { publishShare } from './lib/share';
+import { supabase } from './lib/supabase';
+import ShareView from './components/ShareView';
 import AuthGate from './components/AuthGate';
 
 export default function App() {
@@ -51,6 +54,7 @@ export default function App() {
   const [outPoint, setOutPoint] = useState<number | null>(null);
   const [captions, setCaptions] = useState<Caption[]>([]);
   const [autoCaptioning, setAutoCaptioning] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [trackSettings, setTrackSettings] = useState<TrackSettingsMap>({});
   const [rippleEnabled, setRippleEnabled] = useState(false);
 
@@ -1612,13 +1616,12 @@ export default function App() {
     }
   }, []);
 
-  /** Try the offline WebCodecs MP4 export. true = handled (done/cancelled/failed-fast), false = unsupported. */
-  const tryOfflineMp4Export = useCallback(async (quality: ExportQuality, bitrate: number): Promise<boolean> => {
+  /** Render the timeline to an MP4 Blob via the offline WebCodecs path (no download). */
+  const renderOfflineMp4 = useCallback(async (quality: ExportQuality, bitrate: number) => {
     const dur = stateRef.current.duration;
     const canvas = prepareExportCanvas(quality);
-    if (!canvas) return true;
+    if (!canvas) return { status: 'unsupported' as const };
     try {
-      showToast('Rendering MP4 as fast as your machine allows…');
       setExportProgress(0);
       const result = await exportTimelineMp4({
         canvas,
@@ -1632,32 +1635,75 @@ export default function App() {
         isCancelled: () => exportCancelledRef.current,
         onProgress: (p) => setExportProgress(p),
       });
-      if (result.status === 'unsupported') {
-        exportCanvasRef.current = null;
-        return false; // caller falls back to the recorder + ffmpeg path
-      }
-      if (result.status === 'cancelled') {
-        setExportProgress(null);
-        exportCanvasRef.current = null;
-        drawAndSync(currentTimeRef.current, false);
-        return true; // cancelExport already toasted
-      }
       setExportProgress(null);
       exportCanvasRef.current = null;
       drawAndSync(currentTimeRef.current, false);
+      if (result.status === 'done') return { status: 'done' as const, blob: result.blob };
+      return result; // 'unsupported' | 'cancelled'
+    } catch (err) {
+      if (exportCancelledRef.current) return { status: 'cancelled' as const };
+      console.error(err);
+      setExportProgress(null);
+      exportCanvasRef.current = null;
+      drawAndSync(currentTimeRef.current, false);
+      return { status: 'failed' as const };
+    }
+  }, [prepareExportCanvas, seekAndDraw, renderAudioOffline, drawAndSync]);
+
+  /** Try the offline WebCodecs MP4 export. true = handled (done/cancelled), false = unsupported/failed → fallback. */
+  const tryOfflineMp4Export = useCallback(async (quality: ExportQuality, bitrate: number): Promise<boolean> => {
+    showToast('Rendering MP4 as fast as your machine allows…');
+    const result = await renderOfflineMp4(quality, bitrate);
+    if (result.status === 'done') {
       const base = projectName.trim().replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80) || 'clipforge';
       downloadBlob(result.blob, `${base}.mp4`);
       showToast(`Exported MP4 ${(result.blob.size / 1_000_000).toFixed(1)} MB — check your downloads.`);
       return true;
-    } catch (err) {
-      if (exportCancelledRef.current) return true;
-      console.error(err);
-      exportCanvasRef.current = null;
-      drawAndSync(currentTimeRef.current, false);
+    }
+    if (result.status === 'cancelled') return true; // cancelExport already toasted
+    if (result.status === 'failed') {
       showToast('Fast MP4 export failed — falling back to the classic recorder…');
       return false;
     }
-  }, [prepareExportCanvas, seekAndDraw, renderAudioOffline, drawAndSync, projectName, showToast]);
+    return false; // unsupported → caller falls back to the recorder + ffmpeg path
+  }, [renderOfflineMp4, projectName, showToast]);
+
+  /** Share link: render 720p MP4 via the offline path and publish to the public bucket. */
+  const handleShare = useCallback(async () => {
+    if (sharing) return;
+    if (!cloudProjectsEnabled || !supabase) {
+      showToast('Share links need a Supabase-backed deployment with cloud projects enabled.');
+      return;
+    }
+    if (stateRef.current.duration <= 0) { showToast('Add something to the timeline first.'); return; }
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) { showToast('Sign in from the gate to create a share link — local-mode projects stay on this device.'); return; }
+    setSharing(true);
+    exportCancelledRef.current = false;
+    cancelAnimationFrame(rafRef.current);
+    playingRef.current = false;
+    setPlaying(false);
+    for (const [, el] of mediaEls.current) { if (!(el instanceof HTMLImageElement) && !el.paused) el.pause(); }
+    showToast('Rendering the share video (MP4, 720p)…');
+    const render = await renderOfflineMp4('720p', 8_000_000);
+    if (render.status === 'cancelled') { setSharing(false); return; } // cancelExport already toasted
+    if (render.status !== 'done') {
+      setSharing(false);
+      showToast('Could not render the share video — export an MP4 instead and upload it manually.');
+      return;
+    }
+    showToast('Publishing the share video…');
+    const result = await publishShare(render.blob);
+    setSharing(false);
+    if (result.status === 'unsupported') { showToast('Sign in from the gate to create a share link.'); return; }
+    if (result.status === 'failed') { showToast(result.message); return; }
+    try {
+      await navigator.clipboard.writeText(result.url);
+      showToast('Share link copied to clipboard.');
+    } catch {
+      showToast(`Share link ready: ${result.url}`);
+    }
+  }, [sharing, renderOfflineMp4, showToast]);
 
 
   const handleExport = useCallback((quality: ExportQuality, bitrate: number) => {
@@ -1921,6 +1967,14 @@ export default function App() {
     setInPoint((previous) => previous !== null && previous > time ? null : previous);
   }, []);
 
+  /* ------------------------------------------------ share link route ------------------------------------------------ */
+
+  // Any `#/share/...` hash routes to the public viewer; ShareView classifies
+  // well-formed vs malformed links itself.
+  if (typeof window !== 'undefined' && window.location.hash.startsWith('#/share')) {
+    return <ShareView />;
+  }
+
   if (mode === 'home') {
     return (
       <LandingPage
@@ -1993,6 +2047,8 @@ export default function App() {
         onExportCaptions={exportCaptions}
         saveState={saveState}
         onCommandPalette={() => setCommandOpen(true)}
+        onShare={() => void handleShare()}
+        shareBusy={sharing}
       />
       <main className={`workspace${collapsedPanels.media ? ' media-collapsed' : ''}${collapsedPanels.inspector ? ' inspector-collapsed' : ''}`}>
         {!collapsedPanels.media && <MediaPanel

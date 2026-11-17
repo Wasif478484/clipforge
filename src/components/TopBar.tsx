@@ -30,6 +30,8 @@ interface Props {
   onExportCaptions?: (format: 'srt' | 'vtt') => void;
   saveState?: 'saved' | 'saving' | 'unsaved' | 'failed';
   onCommandPalette?: () => void;
+  onShare?: () => void;
+  shareBusy?: boolean;
 }
 
 export type ExportQuality = '720p' | '1080p' | '4K';
@@ -38,7 +40,7 @@ export default function TopBar({
   projectName, onProjectNameChange, aspect, onAspectChange, onExport, onExportMp4,
   onCancelExport, onAddText, onAddSticker, onHome, onUndo, onRedo, onSaveProject, onSaveToRecent,
   onLoadProject, exportProgress, mp4Busy, canExport, defaultExportFormat = 'webm',
-  storageStatus, onImportCaptions, onExportCaptions, saveState = 'saved', onCommandPalette,
+  storageStatus, onImportCaptions, onExportCaptions, saveState = 'saved', onCommandPalette, onShare, shareBusy = false,
 }: Props) {
   const [exportFormat, setExportFormat] = useState<'webm' | 'mp4'>(defaultExportFormat);
   const [quality, setQuality] = useState<ExportQuality>('1080p');
@@ -115,6 +117,7 @@ export default function TopBar({
           <div className="topbar-menu">
             {onSaveProject && <button onClick={onSaveProject}>Save project file</button>}
             {onSaveToRecent && <button onClick={() => void onSaveToRecent()}>Save to recents</button>}
+            {onShare && <button onClick={onShare} disabled={shareBusy}>{shareBusy ? 'Publishing…' : 'Share link…'}</button>}
             {onLoadProject && <label>Load project<input type="file" accept=".clipforge.json,application/json" hidden onChange={(e) => { if (e.target.files?.[0]) onLoadProject(e.target.files[0]); e.target.value = ''; }} /></label>}
             {onImportCaptions && <label>Import captions<input type="file" accept=".srt,.vtt,text/vtt,application/x-subrip" hidden onChange={(e) => { if (e.target.files?.[0]) onImportCaptions(e.target.files[0]); e.target.value = ''; }} /></label>}
             {onExportCaptions && <><button onClick={() => onExportCaptions('srt')}>Export SRT</button><button onClick={() => onExportCaptions('vtt')}>Export VTT</button></>}
