@@ -147,7 +147,7 @@ export function loadAll(root = document) {
   plan(root);
   return Promise.all([...root.querySelectorAll('[data-ui-load]')].map(el => {
     let opts = {};
-    try { opts = el.dataset.uiOpts ? JSON.parse(el.dataset.uiOpts) : {}; } catch (e) { console.warn('ui: bad data-ui-opts', el); }
+    try { opts = el.dataset.uiOpts ? JSON.parse(el.dataset.uiOpts) : {}; } catch { console.warn('ui: bad data-ui-opts', el); }
     return load(el, el.dataset.uiLoad, opts).catch(e => { console.warn(e); return null; });
   }));
 }
@@ -292,7 +292,7 @@ function hostListen(host, rec) {
       const live = [...set].filter(r => r.running());
       if (live.length) { live.forEach(r => r.restart()); return; }
       const top = [...set].sort((a, b) => (a.root.compareDocumentPosition(b.root) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)).pop();
-      if (top) (pointer ? top.hover(true) : top.restart());
+      if (top) { if (pointer) { top.hover(true); } else { top.restart(); } }
     };
     const leave = () => set.forEach(r => r.hover(false));
     host.addEventListener('pointerenter', e => { if (e.pointerType !== 'touch') enter(true); });
@@ -425,7 +425,7 @@ export function loop(root, cycle, { still, rest = 600, rootMargin = '0px', cycle
   const onVis = () => flush();
   document.addEventListener('visibilitychange', onVis);
   // effects inside the fragment (the voice orb) stop and start with it
-  const inner = on => root.querySelectorAll('[data-fx-mounted]').forEach(el => { try { on ? el.__fx?.resume() : el.__fx?.pause(); } catch {} });
+  const inner = on => root.querySelectorAll('[data-fx-mounted]').forEach(el => { try { if (on) { el.__fx?.resume(); } else { el.__fx?.pause(); } } catch {} });
   const ctl = {
     pause() { paused = true; if (began) { abort(AGAIN); began = 0; show(); if (mode === 'run' && rest > 0) needRest = true; } root.classList.add('is-ui-paused'); inner(false); root.dispatchEvent(new CustomEvent('ui-pause', { detail: { paused: true } })); },
     resume() { paused = false; root.classList.remove('is-ui-paused'); inner(true); root.dispatchEvent(new CustomEvent('ui-pause', { detail: { paused: false } })); flush(); },
