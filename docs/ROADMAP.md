@@ -1,5 +1,11 @@
 # ClipForge roadmap
 
+## Capability gaps acknowledged (2026-11-19 review)
+
+- **Proxy generation**: not shipped; deferred — the offline export path made it unnecessary for the common case (faster-than-real-time), and preview was out of scope. Revisit when editing 4K sources.
+- **Multithreaded ffmpeg**: deliberately not enabled — the offline path almost never needs the ffmpeg fallback, and COOP/COEP headers risk breaking Supabase-hosted media. Single-threaded core remains as fallback.
+- **Offline WebM export**: MP4 got the offline WebCodecs path; WebM still captures in real time then transcodes. Intentionally not duplicated.
+
 ## Delivered
 
 - Local MediaPipe and FFmpeg assets

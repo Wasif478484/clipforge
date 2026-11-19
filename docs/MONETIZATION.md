@@ -27,7 +27,7 @@ zero-maintenance revenue option if — and only if — the owner wants it.
 
 1. **GitHub Sponsors / Buy Me a Coffee link** — cost to build: a footer link.
    Cost to maintain: zero. Expected revenue at 0 stars: ≈$0. Zero risk.
-   Decision: ask owner.
+   Decision: owner approved (yes, 2026-11-19); shipped in 8584044.
 2. **Open-core paywall** (e.g. paid cloud-sync accounts, pro templates) —
    everything premium lives server-side; gating it violates the current
    "no account required, all local" promise and would hurt the only feature
@@ -49,6 +49,11 @@ zero-maintenance revenue option if — and only if — the owner wants it.
 - Any measurable conversion resistance (e.g. share links going viral) →
   share-page "made with ClipForge" CTA is already the funnel; measure it.
 
+## Owner decisions (resolved 2026-11-19)
+
+1. GitHub Sponsors link in the landing footer: **yes** — shipped in 8584044. Enroll at github.com/sponsors/Wasif478484 (owner action).
+2. Revisit with the first analytics report in **30 days** (owner's choice). Triggers above still apply.
+
 ## Immediate actions taken
 
 - Vercel Web Analytics component wired in (`@vercel/analytics`) — free,
@@ -63,5 +68,5 @@ zero-maintenance revenue option if — and only if — the owner wants it.
 
 ## Owner decisions requested
 
-1. Add a GitHub Sponsors link to the landing footer? (yes / no / link TBD)
-2. Revisit in 30 / 60 / 90 days with the first analytics report?
+1. GitHub Sponsors link: **resolved — yes** (shipped 8584044).
+2. Revisit in **30 days** (resolved 2026-11-19; was listed as 30/60/90). The 90-day figure in option 4 above remains the outer bound for the subscription question specifically.
