@@ -1,0 +1,67 @@
+# ClipForge — Monetization decision memo (Phase 4)
+
+**Date:** 2026-11-19 · **Status:** decision pending · **Owner:** repo owner
+
+## The data we actually have
+
+| Signal | Value | Source |
+|---|---|---|
+| Stars / forks / watchers | 0 / 0 / 0 | GitHub API (2026-11-19) |
+| Open issues | 1 | GitHub API |
+| Total release downloads (v0.2.0, Nov 5) | 4 | GitHub releases API |
+| App analytics | none — no analytics component or endpoint anywhere | codebase grep |
+| Live site pageviews | unmeasurable — Vercel prod deploys still failing | vercel CLI |
+| Cloud usage | unknown — Supabase project exists, no query run | — |
+
+That is not an analytics-backed userbase. There is no signal that anyone
+would pay for anything yet.
+
+## Plan gate
+
+The improvement plan gated monetization on analytics data. That gate is
+**unmet**. The correct Phase 4 outcome today is: (1) turn measurement on,
+(2) record what we would decide when data arrives, (3) ship the one
+zero-maintenance revenue option if — and only if — the owner wants it.
+
+## Options considered
+
+1. **GitHub Sponsors / Buy Me a Coffee link** — cost to build: a footer link.
+   Cost to maintain: zero. Expected revenue at 0 stars: ≈$0. Zero risk.
+   Decision: ask owner.
+2. **Open-core paywall** (e.g. paid cloud-sync accounts, pro templates) —
+   everything premium lives server-side; gating it violates the current
+   "no account required, all local" promise and would hurt the only feature
+   that works: trust. Not viable pre-validation. **Reject for now.**
+3. **Paid desktop installer** — breaks the MIT / open-source positioning and
+   GitHub release distribution; smartscreen-unsigned paid binaries repel the
+   exact audience. **Reject.**
+4. **Subscription cloud tier** (unlimited cloud projects/media sync) — requires
+   volume, billing infra, support load, and abuse handling. Requires analytics
+   first. **Revisit after 90 days of data.**
+5. **Grants / sponsorship from tooling companies** — plausible with stars in
+   the hundreds; same data dependency.
+
+## Decision framework (revisit when any trigger fires)
+
+- ≥ 200 stars or ≥ 500 unique monthly visitors → add Sponsors link.
+- ≥ 50 weekly active cloud-sync users → design a capped free tier + paid tier;
+  price against a hosting cost model, not vibes.
+- Any measurable conversion resistance (e.g. share links going viral) →
+  share-page "made with ClipForge" CTA is already the funnel; measure it.
+
+## Immediate actions taken
+
+- Vercel Web Analytics component wired in (`@vercel/analytics`) — free,
+  cookieless, same-origin (CSP unchanged). Activates on the next successful
+  production deploy; until Vercel provisioning recovers, nothing is measured.
+
+## What this memo deliberately does not do
+
+- No pricing, no paywall code, no billing dependency, no account changes.
+- No commitment to keep ClipForge free forever — the decision is revisited
+  with the first real analytics report.
+
+## Owner decisions requested
+
+1. Add a GitHub Sponsors link to the landing footer? (yes / no / link TBD)
+2. Revisit in 30 / 60 / 90 days with the first analytics report?

@@ -21,6 +21,7 @@ const HeroScene = lazy(() => import('./hero-scene/HeroScene'));
 
 const RELEASES_URL = 'https://github.com/Wasif478484/clipforge/releases/latest';
 const REPO_URL = 'https://github.com/Wasif478484/clipforge';
+const SPONSORS_URL = 'https://github.com/sponsors/Wasif478484';
 
 interface Props {
   onLaunchEditor: () => void;
@@ -361,6 +362,7 @@ export default function LandingPage({ onLaunchEditor, onOpenProjects }: Props) {
                   <li><a href={`${REPO_URL}/releases`}>Releases</a></li>
                   <li><a href={`${REPO_URL}/issues`}>Issues</a></li>
                   <li><a href={`${REPO_URL}/blob/main/LICENSE`}>MIT License</a></li>
+                  <li><a href={SPONSORS_URL}>Sponsor on GitHub</a></li>
                   <li><a href="/privacy.html">Privacy Policy</a></li>
                 </ul>
               </div>
