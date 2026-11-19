@@ -59,15 +59,8 @@ export async function exportTimelineMp4(opts: OfflineMp4Options): Promise<Offlin
   });
   output.addVideoTrack(videoSource, { frameRate: opts.fps });
 
-  // Audio is mixed/decoded while video frames render; the buffer is appended
-  // once ready (AudioBufferSource always appends at the track's tail).
-  const audioPromise = opts.renderAudio().catch(() => null);
-  let audioBuffer: AudioBuffer | null = null;
-  try {
-    audioBuffer = await audioPromise;
-  } catch {
-    audioBuffer = null;
-  }
+  // Audio is mixed/decoded first; the buffer is appended at the track's tail.
+  const audioBuffer = await opts.renderAudio().catch(() => null);
   let audioSource: AudioBufferSource | null = null;
   if (audioBuffer) {
     const audioCodec = await getFirstEncodableAudioCodec(['aac', 'opus'], {

@@ -26,10 +26,13 @@ describe('whisperChunksToCaptions', () => {
     const chunks: WhisperChunk[] = [
       { text: '   ', timestamp: [1, 2] as [number, number] },
       { text: 'gone', timestamp: [null as unknown as number, null] as [number, null] },
+      { text: 'earliest', timestamp: [0.5, 0.9] as [number, number] },
+      { text: 'straddle', timestamp: [0.5, 1.5] as [number, number] },
       { text: 'kept', timestamp: [2, 4] },
     ];
     const captions = whisperChunksToCaptions(chunks, '', clip);
-    expect(captions.map((c) => c.text)).toEqual(['kept']);
+    expect(captions.map((c) => c.text)).toEqual(['straddle', 'kept']);
+    expect(captions[0].start).toBe(2); // straddler clamps at the trim-in → clip.start
   });
 
   it('clamps captions that overshoot the clip end', () => {

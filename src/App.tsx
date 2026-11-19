@@ -1063,7 +1063,10 @@ export default function App() {
       const mono16k = await resample.startRendering();
       const samples = mono16k.getChannelData(0);
 
-      const { pipeline } = await import('@xenova/transformers');
+      const { pipeline, env } = await import('@xenova/transformers');
+      env.allowLocalModels = false;
+      // Self-hosted ONNX runtime WASM (defaults to jsdelivr CDN, which our CSP forbids).
+      env.backends.onnx.wasm.wasmPaths = `${import.meta.env.BASE_URL}whisper/`;
       const asr = await pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny');
       const result = await asr(samples, { return_timestamps: true, chunk_length_s: 30, stride_length_s: 5 }) as {
         text: string;

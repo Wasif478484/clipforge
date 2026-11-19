@@ -1,9 +1,8 @@
 // Whisper transcription → timeline captions. The model itself runs in
 // App.tsx via @xenova/transformers (dynamic import, WASM); this module holds
 // the pure timestamp math so it can be unit tested without a model.
-import { uid } from '../util';
+import { clamp, uid } from '../util';
 import type { Caption } from '../types';
-import { clamp } from '../util';
 
 export interface WhisperChunk {
   text?: string;
@@ -20,7 +19,8 @@ export interface CaptionSourceClip {
 
 /**
  * Map Whisper's source-media timestamps onto the timeline for `clip`.
- * Chunk times before the clip's trim-in are dropped; times past the clip's
+ * Chunks that END before the clip's trim-in are dropped; chunks straddling
+ * the trim-in keep their text and start at clip.start; times past the clip's
  * end are clamped; sub-0.4 s captions are stretched a little so they remain
  * readable. Output is sorted by timeline start.
  */
@@ -39,7 +39,9 @@ export function whisperChunksToCaptions(
     if (!text) continue;
     const [rawStart, rawEnd] = chunk.timestamp ?? [];
     if (rawStart == null) continue;
-    const start = clamp(toTimeline(rawStart), clip.start, Math.max(clip.start, clipEnd - 0.05));
+    // Drop chunks fully before the trim-in; keep straddlers clamped to clip.start.
+    if (rawEnd != null && rawEnd <= clip.trimStart) continue;
+    const start = clamp(toTimeline(Math.max(rawStart, clip.trimStart)), clip.start, Math.max(clip.start, clipEnd - 0.05));
     const end = rawEnd == null
       ? clipEnd
       : clamp(toTimeline(rawEnd), start + 0.4, clipEnd);

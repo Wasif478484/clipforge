@@ -56,9 +56,14 @@ zero-maintenance revenue option if — and only if — the owner wants it.
 
 ## Immediate actions taken
 
-- Vercel Web Analytics component wired in (`@vercel/analytics`) — free,
-  cookieless, same-origin (CSP unchanged). Activates on the next successful
-  production deploy; until Vercel provisioning recovers, nothing is measured.
+- Analytics wiring was **removed** after landing in 8584044: the repo's
+  documented contract (README, privacy.html, landing page, CONTRIBUTING)
+  promises *no telemetry*, and CONTRIBUTING rejects analytics PRs — the
+  honest resolution is no analytics, not rewritten docs. Measurement stays
+  blocked on the owner's explicit call plus a working prod deploy.
+- Next measurement step (owner decision): flip privacy.html + README +
+  CONTRIBUTING *or* keep ClipForge telemetry-free and measure via GitHub
+  releases/Issues only.
 
 ## What this memo deliberately does not do
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseShareHash, sharePublicUrl, sharePublicUrlFor } from './share';
+import { parseShareHash, sharePublicUrlFor } from './share';
 
 const validPath = '123e4567-e89b-12d3-a456-426655440000/123e4567-e89b-12d3-a456-426655440001.mp4';
 
@@ -24,17 +24,16 @@ describe('parseShareHash', () => {
   });
 });
 
-describe('sharePublicUrl', () => {
+describe('sharePublicUrl for malformed paths', () => {
   it('returns null for malformed paths', () => {
-    expect(sharePublicUrl('garbage')).toBeNull();
-    expect(sharePublicUrl('../secret')).toBeNull();
-    expect(sharePublicUrl(null)).toBeNull();
+    expect(sharePublicUrlFor('https://abc123.supabase.co', 'garbage')).toBeNull();
+    expect(sharePublicUrlFor('https://abc123.supabase.co', '../secret')).toBeNull();
+    expect(sharePublicUrlFor(undefined, null)).toBeNull();
   });
 
   it('returns null on unconfigured deployments even for valid paths', () => {
-    // The test environment has no VITE_SUPABASE_URL, mirroring an
-    // unconfigured local deployment.
-    expect(sharePublicUrl(validPath)).toBeNull();
+    // vitest runs in mode 'test'; a developer .env.local must not flip this.
+    expect(sharePublicUrlFor(undefined, validPath)).toBeNull();
   });
 });
 

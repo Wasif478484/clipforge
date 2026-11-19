@@ -1,19 +1,17 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { Analytics } from '@vercel/analytics/react'
 import 'animate.css'
 import './styles.css'
 import App from './App.tsx'
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js?v=2`);
+    void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js?v=2`).catch(() => undefined);
   });
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
-    <Analytics />
   </StrictMode>,
 )

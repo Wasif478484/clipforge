@@ -47,7 +47,7 @@ export function sharePublicUrl(path: string | null): string | null {
 
 /** Parse `#/share/<uuid>/<uuid>.mp4` into the storage path. */
 export function parseShareHash(hash: string): string | null {
-  const match = /^#\/share\/([0-9a-fA-F-]{36}\/[0-9a-fA-F-]{36}\.mp4)$/.exec(hash);
+  const match = /^#\/share\/([0-9a-fA-F-]{36}\/[0-9a-fA-F-]{36}\.mp4)$/.exec(hash.toLowerCase());
   if (!match) return null;
-  return match[1].toLowerCase();
+  return SHARE_PATH_RE.test(match[1]) ? match[1] : null;
 }
