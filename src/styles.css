@@ -524,7 +524,7 @@ button:disabled { cursor: default; }
   padding: 10px 10px; border-radius: var(--r-md); text-align: left; text-decoration: none; cursor: pointer; font-size: 13px; font-weight: 650;
 }
 .studio-nav-item:hover { background: var(--surface-2); color: var(--ink); }
-.studio-nav-item.is-active { background: var(--accent-soft); color: var(--accent-hover); border-left: 2px solid var(--accent); border-radius: var(--r-md) 2px 2px var(--r-md); }
+.studio-nav-item.is-active { background: var(--accent-soft); color: var(--accent-hover); border: 1px solid var(--accent-line); border-radius: var(--r-md); }
 .studio-nav-hint { margin-left: auto; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-subtle); }
 .studio-local-badge { margin-top: auto; display: flex; gap: 8px; align-items: center; color: var(--ink-subtle); font-size: 10px; line-height: 1.5; border-top: 1px solid var(--hairline); padding-top: 16px; }
 

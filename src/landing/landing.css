@@ -126,9 +126,7 @@
   font-size: clamp(2.5rem, 4.4vw + 0.6rem, 4rem);
   font-weight: 500; letter-spacing: -0.04em; line-height: 1.02;
   margin: 0; max-width: 13ch;
-  background: linear-gradient(180deg, #fbf6ea 0%, #f5f0e6 55%, #cdbf9e 110%);
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
+  color: var(--ink);
 }
 .hero__lead { margin: 18px 0 0; font-size: 20px; line-height: 1.4; color: var(--ink); max-width: 46ch; }
 .hero__proof { display: flex; flex-wrap: wrap; gap: 14px; margin: 22px 0 0; font: 400 12px/1.5 var(--font-mono); color: var(--ink-subtle); }
@@ -281,9 +279,7 @@
 .closing__name {
   margin-top: auto; font-size: clamp(84px, 17.5vw, 216px); line-height: 0.95; font-weight: 500;
   letter-spacing: -0.045em;
-  background: linear-gradient(180deg, rgba(244, 224, 168, 0.28), rgba(245, 240, 230, 0.1) 70%, rgba(245, 240, 230, 0.05));
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent; color: transparent;
+  color: var(--ink);
   user-select: none; align-self: start; padding-top: 24px;
 }
 .closing__links { border-top: 1px solid var(--hairline); padding-top: 22px; margin-top: 14px; }
